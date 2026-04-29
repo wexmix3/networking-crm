@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Mail, Phone, ExternalLink, Plus, Sparkles, Pencil } from 'lucide-react'
+import { ArrowLeft, Mail, Phone, ExternalLink, Plus, Sparkles, Pencil, Zap } from 'lucide-react'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
 import type { Contact, Interaction, InteractionType } from '@/types'
 import { stalenessLevel, stalenessColor, stalenessLabel } from '@/types'
@@ -51,6 +51,8 @@ export default function ContactDetailPage() {
   const [showEdit, setShowEdit] = useState(false)
   const [aiDraft, setAiDraft] = useState('')
   const [drafting, setDrafting] = useState(false)
+  const [enriching, setEnriching] = useState(false)
+  const [enriched, setEnriched] = useState(false)
 
   const [logType, setLogType] = useState<InteractionType>('emailed')
   const [logNote, setLogNote] = useState('')
@@ -92,6 +94,13 @@ export default function ContactDetailPage() {
     if (!confirm('Delete this contact and all their interactions?')) return
     await fetch(`/api/contacts/${id}`, { method: 'DELETE' })
     router.push('/dashboard')
+  }
+
+  async function triggerEnrich() {
+    setEnriching(true)
+    await fetch(`/api/contacts/${id}/enrich`, { method: 'POST' })
+    setEnriching(false)
+    setEnriched(true)
   }
 
   async function getDraft() {
@@ -150,6 +159,14 @@ export default function ContactDetailPage() {
                 >
                   <Pencil className="w-3.5 h-3.5" />
                   Edit
+                </button>
+                <button
+                  onClick={triggerEnrich}
+                  disabled={enriching || enriched}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  <Zap className="w-3.5 h-3.5" />
+                  {enriching ? 'Enriching…' : enriched ? 'Queued' : 'Enrich'}
                 </button>
                 <button
                   onClick={deleteContact}
