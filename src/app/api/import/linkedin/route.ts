@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createRouteSupabaseClient } from '@/lib/supabase-server'
+import { tasks } from '@trigger.dev/sdk/v3'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,12 +31,14 @@ function parseCSV(text: string): LinkedInRow[] {
   })
 }
 
+const APOLLO_FREE_TIER_LIMIT = 50
+
 export async function POST(req: Request) {
   const supabase = await createRouteSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { csv } = await req.json()
+  const { csv, enrich = false } = await req.json()
   if (!csv) return NextResponse.json({ error: 'No CSV provided' }, { status: 400 })
 
   const rows = parseCSV(csv)
@@ -47,7 +50,7 @@ export async function POST(req: Request) {
 
   // Fetch existing linkedin_urls to detect duplicates
   const { data: existing } = await supabase
-    .from('contacts')
+    .from('crm_contacts')
     .select('email, name')
     .eq('user_id', user.id)
 
@@ -71,17 +74,29 @@ export async function POST(req: Request) {
       email: email || null,
       source: 'linkedin',
       tags: [],
+      enrichment_status: enrich ? 'pending' : null,
     })
   }
 
   if (toInsert.length > 0) {
     const { data: inserted, error } = await supabase
-      .from('contacts')
+      .from('crm_contacts')
       .insert(toInsert)
-      .select('id')
+      .select('id, name, company')
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     imported = inserted?.length ?? 0
+
+    if (enrich && inserted && inserted.length > 0) {
+      const toEnrich = inserted.slice(0, APOLLO_FREE_TIER_LIMIT)
+      await tasks.batchTrigger(
+        'enrich-contact',
+        toEnrich.map((c: { id: string; name: string; company: string | null }) => ({
+          payload: { contactId: c.id, name: c.name, company: c.company ?? null },
+          options: { idempotencyKey: `enrich-${c.id}` },
+        }))
+      )
+    }
   }
 
-  return NextResponse.json({ imported, skipped, errors })
+  return NextResponse.json({ imported, skipped, errors, enriching: enrich ? Math.min(imported, APOLLO_FREE_TIER_LIMIT) : 0 })
 }

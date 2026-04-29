@@ -10,7 +10,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { data, error } = await supabase
-    .from('interactions')
+    .from('crm_interactions')
     .select('*')
     .eq('contact_id', id)
     .eq('user_id', user.id)
@@ -28,7 +28,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   const body = await req.json()
   const { data, error } = await supabase
-    .from('interactions')
+    .from('crm_interactions')
     .insert({ ...body, contact_id: id, user_id: user.id })
     .select()
     .single()

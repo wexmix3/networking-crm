@@ -4,11 +4,34 @@ export const dynamic = 'force-dynamic'
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Plus, Search, Upload } from 'lucide-react'
+import { Plus, Search, Upload, Users } from 'lucide-react'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
 import type { Contact } from '@/types'
 import { stalenessLevel, stalenessColor, stalenessLabel } from '@/types'
 import AddContactModal from '@/components/ui/AddContactModal'
+
+function avatarColor(name: string): string {
+  const palette = [
+    '#6366f1', '#8b5cf6', '#ec4899', '#f59e0b',
+    '#10b981', '#0ea5e9', '#f43f5e', '#14b8a6',
+  ]
+  const hash = name.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
+  return palette[hash % palette.length]
+}
+
+function initials(name: string): string {
+  const parts = name.trim().split(' ')
+  return parts.length >= 2
+    ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+    : name.slice(0, 2).toUpperCase()
+}
+
+const FILTER_LABELS: Record<string, string> = {
+  stale: 'Overdue',
+  warm: 'Due soon',
+  never: 'Never contacted',
+  fresh: 'Fresh',
+}
 
 export default function DashboardPage() {
   const [contacts, setContacts] = useState<Contact[]>([])
@@ -18,14 +41,12 @@ export default function DashboardPage() {
   const [showAdd, setShowAdd] = useState(false)
   const supabase = createBrowserSupabaseClient()
 
-  useEffect(() => {
-    loadContacts()
-  }, [])
+  useEffect(() => { loadContacts() }, [])
 
   async function loadContacts() {
     setLoading(true)
     const { data } = await supabase
-      .from('contacts_with_staleness')
+      .from('crm_contacts_with_staleness')
       .select('*')
       .order('days_since_contact', { ascending: false, nullsFirst: true })
     setContacts((data as Contact[]) ?? [])
@@ -49,24 +70,32 @@ export default function DashboardPage() {
     never: contacts.filter((c) => stalenessLevel(c.days_since_contact) === 'never').length,
   }
 
+  const stalenessBar = [
+    { key: 'stale', count: counts.stale, color: '#ef4444' },
+    { key: 'warm', count: counts.warm, color: '#f59e0b' },
+    { key: 'never', count: counts.never, color: '#94a3b8' },
+  ].filter((s) => s.count > 0)
+
   return (
     <div className="p-8 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+      {/* Header */}
+      <div className="flex items-start justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Contacts</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{contacts.length} total</p>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Contacts</h1>
+          <p className="text-sm text-slate-500 mt-0.5">{contacts.length} in your network</p>
         </div>
         <div className="flex gap-2">
           <Link
             href="/import"
-            className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
           >
             <Upload className="w-4 h-4" />
             Import
           </Link>
           <button
             onClick={() => setShowAdd(true)}
-            className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium text-white transition-all shadow-sm hover:opacity-90"
+            style={{ background: '#6366f1' }}
           >
             <Plus className="w-4 h-4" />
             Add contact
@@ -74,45 +103,33 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Summary pills */}
-      {contacts.length > 0 && (
-        <div className="flex gap-2 mb-5">
-          {counts.stale > 0 && (
+      {/* Status bar */}
+      {contacts.length > 0 && stalenessBar.length > 0 && (
+        <div className="flex gap-2 mb-5 flex-wrap">
+          {stalenessBar.map(({ key, count, color }) => (
             <button
-              onClick={() => setFilter(filter === 'stale' ? 'all' : 'stale')}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                filter === 'stale' ? 'bg-red-600 text-white' : 'bg-red-100 text-red-800 hover:bg-red-200'
+              key={key}
+              onClick={() => setFilter(filter === key as typeof filter ? 'all' : key as typeof filter)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
+                filter === key
+                  ? 'text-white border-transparent'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
               }`}
+              style={filter === key ? { background: color, borderColor: color } : {}}
             >
-              {counts.stale} overdue (90+ days)
+              <span
+                className="w-1.5 h-1.5 rounded-full"
+                style={{ background: filter === key ? 'rgba(255,255,255,0.8)' : color }}
+              />
+              {count} {FILTER_LABELS[key]}
             </button>
-          )}
-          {counts.warm > 0 && (
-            <button
-              onClick={() => setFilter(filter === 'warm' ? 'all' : 'warm')}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                filter === 'warm' ? 'bg-amber-600 text-white' : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
-              }`}
-            >
-              {counts.warm} due soon (31–90 days)
-            </button>
-          )}
-          {counts.never > 0 && (
-            <button
-              onClick={() => setFilter(filter === 'never' ? 'all' : 'never')}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                filter === 'never' ? 'bg-gray-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              {counts.never} never contacted
-            </button>
-          )}
+          ))}
           {filter !== 'all' && (
             <button
               onClick={() => setFilter('all')}
-              className="px-3 py-1.5 rounded-full text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors"
+              className="px-3 py-1.5 rounded-full text-xs font-medium text-slate-400 hover:text-slate-700 transition-colors"
             >
-              Clear filter
+              Clear
             </button>
           )}
         </div>
@@ -120,66 +137,89 @@ export default function DashboardPage() {
 
       {/* Search */}
       <div className="relative mb-4">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
         <input
           type="text"
-          placeholder="Search contacts…"
+          placeholder="Search by name, company, or role…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-transparent transition-all shadow-sm"
+          style={{ '--tw-ring-color': '#6366f1' } as React.CSSProperties}
         />
       </div>
 
+      {/* Contact list */}
       {loading ? (
-        <div className="text-center py-16 text-gray-400 text-sm">Loading…</div>
+        <div className="flex items-center justify-center py-24 text-slate-400 text-sm">Loading…</div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16">
-          <p className="text-gray-500 text-sm mb-4">
-            {contacts.length === 0 ? 'No contacts yet.' : 'No contacts match your search.'}
+        <div className="flex flex-col items-center justify-center py-24 text-center">
+          <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
+            <Users className="w-6 h-6 text-slate-400" />
+          </div>
+          <p className="text-slate-600 font-medium mb-1">
+            {contacts.length === 0 ? 'No contacts yet' : 'No contacts match your search'}
+          </p>
+          <p className="text-slate-400 text-sm mb-5">
+            {contacts.length === 0 ? 'Add someone from your network to get started.' : 'Try a different search term or clear the filter.'}
           </p>
           {contacts.length === 0 && (
-            <div className="flex gap-3 justify-center">
-              <Link href="/import" className="text-sm text-blue-600 hover:underline">Import from LinkedIn</Link>
-              <span className="text-gray-300">or</span>
-              <button onClick={() => setShowAdd(true)} className="text-sm text-blue-600 hover:underline">Add manually</button>
+            <div className="flex gap-3">
+              <Link href="/import" className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90" style={{ background: '#6366f1' }}>
+                Import from LinkedIn
+              </Link>
+              <button onClick={() => setShowAdd(true)} className="px-4 py-2 text-sm font-medium bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors">
+                Add manually
+              </button>
             </div>
           )}
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-500 w-1/3">Name</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Company / Role</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Last contact</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Interactions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filtered.map((c) => {
-                const level = stalenessLevel(c.days_since_contact)
-                return (
-                  <tr key={c.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3">
-                      <Link href={`/contacts/${c.id}`} className="font-medium text-gray-900 hover:text-blue-600 transition-colors">
-                        {c.name}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-gray-500">
-                      {[c.role, c.company].filter(Boolean).join(' @ ') || '—'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${stalenessColor(level)}`}>
-                        {stalenessLabel(c.days_since_contact)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-gray-400">{c.interaction_count ?? 0}</td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+          {filtered.map((c, idx) => {
+            const level = stalenessLevel(c.days_since_contact)
+            const color = avatarColor(c.name)
+            return (
+              <Link
+                key={c.id}
+                href={`/contacts/${c.id}`}
+                className={`flex items-center gap-4 px-5 py-4 hover:bg-slate-50 transition-colors ${
+                  idx !== 0 ? 'border-t border-slate-100' : ''
+                }`}
+              >
+                {/* Avatar */}
+                <div
+                  className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
+                  style={{ background: color }}
+                >
+                  {initials(c.name)}
+                </div>
+
+                {/* Name + meta */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-semibold text-slate-900 truncate">{c.name}</span>
+                    {c.enrichment_status === 'not_found' && (
+                      <span title="Couldn't find additional info" className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                    )}
+                    {c.enrichment_status === 'pending' && (
+                      <span title="Enrichment in progress…" className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse shrink-0" />
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-400 truncate mt-0.5">
+                    {[c.role, c.company].filter(Boolean).join(' · ') || 'No company info'}
+                  </p>
+                </div>
+
+                {/* Staleness */}
+                <div className="shrink-0 text-right">
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${stalenessColor(level)}`}>
+                    {stalenessLabel(c.days_since_contact)}
+                  </span>
+                  <p className="text-xs text-slate-400 mt-1">{c.interaction_count ?? 0} interactions</p>
+                </div>
+              </Link>
+            )
+          })}
         </div>
       )}
 

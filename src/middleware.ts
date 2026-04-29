@@ -1,11 +1,11 @@
-import { createServerClient } from '@supabase/auth-helpers-nextjs'
+import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 const PUBLIC_PATHS = ['/', '/login', '/auth/callback']
 
 export async function middleware(req: NextRequest) {
-  const res = NextResponse.next()
+  let res = NextResponse.next({ request: req })
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,22 +14,21 @@ export async function middleware(req: NextRequest) {
       cookies: {
         getAll() { return req.cookies.getAll() },
         setAll(toSet) {
-          toSet.forEach(({ name, value, options }) => {
-            req.cookies.set(name, value)
-            res.cookies.set(name, value, options)
-          })
+          toSet.forEach(({ name, value }) => req.cookies.set(name, value))
+          res = NextResponse.next({ request: req })
+          toSet.forEach(({ name, value, options }) => res.cookies.set(name, value, options))
         },
       },
     },
   )
 
-  const { data: { session } } = await supabase.auth.getSession()
+  const { data: { user } } = await supabase.auth.getUser()
 
   const isPublic = PUBLIC_PATHS.some(
     (p) => req.nextUrl.pathname === p || req.nextUrl.pathname.startsWith('/api/')
   )
 
-  if (!session && !isPublic) {
+  if (!user && !isPublic) {
     return NextResponse.redirect(new URL('/login', req.url))
   }
 

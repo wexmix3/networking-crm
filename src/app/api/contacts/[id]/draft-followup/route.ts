@@ -11,8 +11,8 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const [{ data: contact }, { data: interactions }] = await Promise.all([
-    supabase.from('contacts_with_staleness').select('*').eq('id', id).maybeSingle(),
-    supabase.from('interactions').select('*').eq('contact_id', id).order('interaction_date', { ascending: false }).limit(5),
+    supabase.from('crm_contacts_with_staleness').select('*').eq('id', id).maybeSingle(),
+    supabase.from('crm_interactions').select('*').eq('contact_id', id).order('interaction_date', { ascending: false }).limit(5),
   ])
 
   if (!contact) return NextResponse.json({ error: 'Not found' }, { status: 404 })

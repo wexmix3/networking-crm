@@ -2,7 +2,7 @@
 create extension if not exists "pgcrypto";
 
 -- Contacts
-create table if not exists contacts (
+create table if not exists crm_contacts (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users(id) on delete cascade not null,
   name text not null,
@@ -17,17 +17,17 @@ create table if not exists contacts (
   created_at timestamptz default now() not null
 );
 
-alter table contacts enable row level security;
+alter table crm_contacts enable row level security;
 
 create policy "Users manage own contacts"
-  on contacts for all
+  on crm_contacts for all
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
 -- Interactions
-create table if not exists interactions (
+create table if not exists crm_interactions (
   id uuid primary key default gen_random_uuid(),
-  contact_id uuid references contacts(id) on delete cascade not null,
+  contact_id uuid references crm_contacts(id) on delete cascade not null,
   user_id uuid references auth.users(id) on delete cascade not null,
   type text not null check (type in ('met','emailed','called','dm','other')),
   note text,
@@ -35,15 +35,15 @@ create table if not exists interactions (
   created_at timestamptz default now() not null
 );
 
-alter table interactions enable row level security;
+alter table crm_interactions enable row level security;
 
 create policy "Users manage own interactions"
-  on interactions for all
+  on crm_interactions for all
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
 -- Digest preferences
-create table if not exists digest_preferences (
+create table if not exists crm_digest_preferences (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users(id) on delete cascade not null unique,
   email text not null,
@@ -53,20 +53,20 @@ create table if not exists digest_preferences (
   created_at timestamptz default now() not null
 );
 
-alter table digest_preferences enable row level security;
+alter table crm_digest_preferences enable row level security;
 
 create policy "Users manage own digest prefs"
-  on digest_preferences for all
+  on crm_digest_preferences for all
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
 -- View: contacts enriched with last interaction
-create or replace view contacts_with_staleness as
+create or replace view crm_contacts_with_staleness as
 select
   c.*,
   max(i.interaction_date)::text as last_interaction_date,
   (current_date - max(i.interaction_date))::int as days_since_contact,
   count(i.id)::int as interaction_count
-from contacts c
-left join interactions i on i.contact_id = c.id
+from crm_contacts c
+left join crm_interactions i on i.contact_id = c.id
 group by c.id;

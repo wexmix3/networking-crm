@@ -1,5 +1,7 @@
 export type InteractionType = 'met' | 'emailed' | 'called' | 'dm' | 'other'
 
+export type EnrichmentStatus = 'pending' | 'found' | 'not_found' | null
+
 export interface Contact {
   id: string
   user_id: string
@@ -12,6 +14,7 @@ export interface Contact {
   source: string | null
   tags: string[]
   notes: string | null
+  enrichment_status: EnrichmentStatus
   created_at: string
   // joined
   last_interaction_date?: string | null

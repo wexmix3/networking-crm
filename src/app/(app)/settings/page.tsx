@@ -28,7 +28,7 @@ export default function SettingsPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     setEmail(user.email ?? '')
-    const { data } = await supabase.from('digest_preferences').select('*').eq('user_id', user.id).maybeSingle()
+    const { data } = await supabase.from('crm_digest_preferences').select('*').eq('user_id', user.id).maybeSingle()
     if (data) setPrefs(data)
     setLoading(false)
   }
@@ -37,7 +37,7 @@ export default function SettingsPage() {
     setSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    await supabase.from('digest_preferences').upsert({
+    await supabase.from('crm_digest_preferences').upsert({
       user_id: user.id,
       email: email || user.email,
       digest_enabled: prefs.digest_enabled,

@@ -9,11 +9,13 @@ interface ImportResult {
   imported: number
   skipped: number
   errors: string[]
+  enriching: number
 }
 
 export default function ImportPage() {
   const [dragging, setDragging] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [enrich, setEnrich] = useState(false)
   const [result, setResult] = useState<ImportResult | null>(null)
   const [error, setError] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
@@ -31,7 +33,7 @@ export default function ImportPage() {
     const res = await fetch('/api/import/linkedin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ csv: text }),
+      body: JSON.stringify({ csv: text, enrich }),
     })
 
     const data = await res.json()
@@ -61,6 +63,28 @@ export default function ImportPage() {
       <p className="text-sm text-gray-500 mb-8">
         Export your LinkedIn connections and upload the CSV here to bulk-import your network.
       </p>
+
+      {/* Enrich toggle */}
+      <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4 flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-gray-800">Auto-enrich imported contacts</p>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Fill in missing email, phone, and LinkedIn URLs via Apollo · Free tier: 50 contacts/month
+          </p>
+        </div>
+        <button
+          onClick={() => setEnrich((v) => !v)}
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+            enrich ? 'bg-blue-600' : 'bg-gray-200'
+          }`}
+        >
+          <span
+            className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+              enrich ? 'translate-x-6' : 'translate-x-1'
+            }`}
+          />
+        </button>
+      </div>
 
       {/* Instructions */}
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 flex gap-3">
@@ -121,6 +145,12 @@ export default function ImportPage() {
               <p className="text-xs text-gray-500 mt-0.5">already existed</p>
             </div>
           </div>
+          {result.enriching > 0 && (
+            <div className="bg-blue-50 rounded-lg px-4 py-3 text-sm text-blue-700 flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+              Enriching {result.enriching} contacts in the background — results will appear shortly.
+            </div>
+          )}
           {result.errors.length > 0 && (
             <details className="text-xs text-gray-500">
               <summary className="cursor-pointer hover:text-gray-700">{result.errors.length} rows skipped due to errors</summary>

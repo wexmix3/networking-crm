@@ -19,7 +19,7 @@ export async function POST(req: Request) {
 
   // Get all users with digest enabled
   const { data: prefs } = await supabase
-    .from('digest_preferences')
+    .from('crm_digest_preferences')
     .select('*')
     .eq('digest_enabled', true)
 
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
   for (const pref of prefs) {
     // Get stale + never contacts for this user
     const { data: contacts } = await supabase
-      .from('contacts_with_staleness')
+      .from('crm_contacts_with_staleness')
       .select('*')
       .eq('user_id', pref.user_id)
       .or(`days_since_contact.gte.${pref.stale_threshold_days},days_since_contact.is.null`)

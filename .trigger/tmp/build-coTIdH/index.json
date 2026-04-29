@@ -1,0 +1,30 @@
+{
+  "configPath": "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-coTIdH\\Downloads\\Claude\\networking-crm\\trigger.config.mjs",
+  "customConditions": [
+  ],
+  "prompts": [
+  ],
+  "queues": [
+  ],
+  "runtime": "node",
+  "runtimeVersion": "22.14.0",
+  "tasks": [
+    {
+      "entryPoint": "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-coTIdH\\Downloads\\Claude\\networking-crm\\src\\trigger\\enrich-contact.mjs",
+      "filePath": "src/trigger/enrich-contact.ts",
+      "id": "enrich-contact",
+      "maxDuration": 60,
+      "retry": {
+        "factor": 2,
+        "maxAttempts": 3,
+        "maxTimeoutInMs": 30000,
+        "minTimeoutInMs": 5000,
+        "randomize": true
+      }
+    }
+  ],
+  "timings": {
+    "src/trigger/enrich-contact.ts": 120.45460000000003
+  },
+  "workerEntryPoint": "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-coTIdH\\AppData\\Local\\npm-cache\\_npx\\f51a09bd0abf5f10\\node_modules\\trigger.dev\\dist\\esm\\entryPoints\\dev-run-worker.mjs"
+}

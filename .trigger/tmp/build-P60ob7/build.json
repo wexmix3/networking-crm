@@ -1,0 +1,104 @@
+{
+  "build": {
+  },
+  "cliPackageVersion": "4.4.4",
+  "config": {
+    "dirs": [
+      "./src/trigger"
+    ],
+    "project": "proj_uixrlldxlxyzbgfoglhf"
+  },
+  "configPath": "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-P60ob7\\Downloads\\Claude\\networking-crm\\trigger.config.mjs",
+  "contentHash": "d1d56bb98986585c7e0ff7392105baa9",
+  "customConditions": [
+  ],
+  "deploy": {
+    "env": {
+    }
+  },
+  "environment": "dev",
+  "externals": [
+    {
+      "name": "import-in-the-middle",
+      "version": "1.11.0"
+    }
+  ],
+  "files": [
+    {
+      "entry": "src/trigger/enrich-contact.ts",
+      "out": "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-P60ob7\\Downloads\\Claude\\networking-crm\\src\\trigger\\enrich-contact.mjs"
+    }
+  ],
+  "indexWorkerEntryPoint": "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-P60ob7\\AppData\\Local\\npm-cache\\_npx\\f51a09bd0abf5f10\\node_modules\\trigger.dev\\dist\\esm\\entryPoints\\dev-index-worker.mjs",
+  "otelImportHook": {
+    "include": [
+    ]
+  },
+  "outputHashes": {
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\AppData\\Local\\npm-cache\\_npx\\f51a09bd0abf5f10\\node_modules\\trigger.dev\\dist\\esm\\entryPoints\\dev-index-worker.mjs": "pCa8Tdrr08Y",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\AppData\\Local\\npm-cache\\_npx\\f51a09bd0abf5f10\\node_modules\\trigger.dev\\dist\\esm\\entryPoints\\dev-index-worker.mjs.map": "g3k9JPQAfsE",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\AppData\\Local\\npm-cache\\_npx\\f51a09bd0abf5f10\\node_modules\\trigger.dev\\dist\\esm\\entryPoints\\dev-run-worker.mjs": "fyOFHk53xhg",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\AppData\\Local\\npm-cache\\_npx\\f51a09bd0abf5f10\\node_modules\\trigger.dev\\dist\\esm\\entryPoints\\dev-run-worker.mjs.map": "7arGn6DDGs4",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\Downloads\\Claude\\networking-crm\\src\\trigger\\enrich-contact.mjs": "G20DkvWIK3I",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\Downloads\\Claude\\networking-crm\\src\\trigger\\enrich-contact.mjs.map": "+uwEJI8JvbM",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\Downloads\\Claude\\networking-crm\\trigger.config.mjs": "KznIn4SZCSo",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\Downloads\\Claude\\networking-crm\\trigger.config.mjs.map": "b94/eeoWNCQ",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\chunk-2DY3XVLY.mjs": "7/nuMV+KBAg",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\chunk-2DY3XVLY.mjs.map": "lCLzncQThCY",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\chunk-2MN2R2M3.mjs": "RPTDjmAzxHI",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\chunk-2MN2R2M3.mjs.map": "fLk/zkpUaJQ",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\chunk-32ZKJIWU.mjs": "DrG/svaFnxk",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\chunk-32ZKJIWU.mjs.map": "QugJRsApGqE",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\chunk-562U5NHK.mjs": "7b/ioIZtBAk",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\chunk-562U5NHK.mjs.map": "Y/+dsNc51PA",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\chunk-CB75D5RE.mjs": "fDTi/a5JIQw",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\chunk-CB75D5RE.mjs.map": "HS5I/yNEp1A",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\chunk-DECTUI3V.mjs": "W0F3ygv0UzU",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\chunk-DECTUI3V.mjs.map": "APa1kl8bXAU",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\chunk-R6RKOZAZ.mjs": "5dXP1DbaNVg",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\chunk-R6RKOZAZ.mjs.map": "LMPzUuAiOIM",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\crypto.node-OXDYLDJH.mjs": "M+4k4F5MaKI",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\crypto.node-OXDYLDJH.mjs.map": "CR4+ROUCPXo",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\crypto.node-XRGC7P2P.mjs": "3rnnKy51t+s",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\crypto.node-XRGC7P2P.mjs.map": "0b4tlwmkM3g",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\esm-NZWLVVCZ.mjs": "N5GejMlMbA0",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\esm-NZWLVVCZ.mjs.map": "VON93E1In1A",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\esm-XFGHC7RX.mjs": "bSncMIVlhnc",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\esm-XFGHC7RX.mjs.map": "n/kSTyRRA5k",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\getMachineId-bsd-T4I23FTL.mjs": "V2XiAtRFhy8",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\getMachineId-bsd-T4I23FTL.mjs.map": "XvZilzXzAWQ",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\getMachineId-darwin-WWHWGW2C.mjs": "6qmd/oNqhe0",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\getMachineId-darwin-WWHWGW2C.mjs.map": "+l9HpwKMf8s",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\getMachineId-linux-Q2JHXOUU.mjs": "hV9DruKdQzI",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\getMachineId-linux-Q2JHXOUU.mjs.map": "Gc9QJnrLqMA",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\getMachineId-unsupported-43EQSVS5.mjs": "gK/ZdhO8zXc",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\getMachineId-unsupported-43EQSVS5.mjs.map": "aOBtG4CZ894",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\getMachineId-win-HAG27EIU.mjs": "BKjEQuO2254",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\getMachineId-win-HAG27EIU.mjs.map": "RrzV8FonRfQ",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\s2s-7LUTZTPX.mjs": "TiwbKacB+vA",
+    "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-b5sudS\\s2s-7LUTZTPX.mjs.map": "OnS5h0vcgfI"
+  },
+  "outputPath": "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-P60ob7",
+  "packageVersion": "4.4.4",
+  "runWorkerEntryPoint": "C:\\Users\\maxmw\\Downloads\\Claude\\networking-crm\\.trigger\\tmp\\build-P60ob7\\AppData\\Local\\npm-cache\\_npx\\f51a09bd0abf5f10\\node_modules\\trigger.dev\\dist\\esm\\entryPoints\\dev-run-worker.mjs",
+  "runtime": "node",
+  "sources": {
+    "package.json": {
+      "contentHash": "75d3157ce7229e6c9339203900f4c48f",
+      "contents": "eJxtksGOwiAQhu99CtKzYGmqiZ487HOYIIyV3UoJQ6sb47tvoLRWtzf4P2b454dHRkhuxBXyPckN+FvrfrSpqXTXfBVYDw51awIuGGfFoFqne+FDkXcdRAml09ZjviePjBBCcgX90PTuSVivJnnvna5rcBHbO0lbpqA/NMIDvhWcOt2oqdOwSwi9cH5Cwy6hRptIAOMqI+QZbSqwYBQYqWHm9SCMv7jWakmFXqP6CaXHgu0442PHA3ZWnATCWnT+Qi/QWHBIw9XfmM7zTUro7TyiG3nBygWeFjT1KRkvqtnFs3xGbxWrWDVFKjzQsxmKq+mVQgqd1AqoAyFjGkfO+AwH70HmW1a+2k2n+e6fTFV7XUIIJr7Rcct4ycp53v3XcuRe6OamjZKIa9uil5gGeM39awHXplUwxFJ8kNlYuyU0mp3h9B2C+KFR2ZqzrulyJjOz7ybjdfHrR30TJ8+e2R945+gE"
+    },
+    "src/trigger/enrich-contact.ts": {
+      "contentHash": "e5b6f2b8d6eaa28c55e19d93ab71301b",
+      "contents": "eJx9Vttu4zYQffdXTIR9kAFb9nbRF7ne1Bv4wd00NnIpWgSBlpFGNmOKVEnKidcR0I/oF/ZLCoq6Os6+STNzDg/nQpImqZAaDqCJ2kIOsRQJOL9qSddrlF6Eu5GKtqPdJ2fSo1VsKJFovGAUuW4wKkvJI1E4qj6GT8qZ9HqUa5QxCRFmqWBMrDaCIxx6AIpwqul3jAKeJY8ofVBaUr6e9PITMJRK8AKHCaHsvIkGYJRvMaI8yGTXoalm2LGkZvlyQXXut0XdP5xc+RpVKriymtNCRoMrfgsYvhTpCQVXGpBLGm4uBNck1DAt0usaPI18cKx3GFq3M+gBSNRy7xdLACTkZaY1JqlWPnwaFLaYhFpIH36yvwnltzRBkekF/1358PN4PB5U4I7n0zgofXmxUMZ9IGrPQ3BTsmeCRL6pqdWyiOpcAScJNn+hSFLC95UBXoFnjEHeh+nnUrbdelX+O8lgCqkUISrlId95V/M/b4PV3ZfLxUVwc7eafZndzIO768tJG41yR0O8Fgy/4v6IoAbdzK//WFzMg+vl5Tz4Ov+rzUCKwsxS+hY/Wy0vL5fBbLWwoAJFY3DPWqL7oDdSPAPHZ5hLKaTrvCccqAIujGjt9Cctts4mThC+u5H3GNubOsHX3dgRyYnawLQzxG5r+4OjEnQJTE+siNTKZNZ2j2dsnpY0cfueShnVrgOVeIuKqVT6iiRm3ZrhfvzQjmHkbYinGA3R/dj3ngTlBS28vkLGI4wpx6gjTaIRRZ4J1RCjDjeus9E6Vf5oRFLq2Qx6VIx2H0cpipThKCE63DiDsn0BEtQbYQZ0tby5dQaldYMkQqn8OgzAMZONXA9v9yk6PjgkTRkNiaaCj56U4DXYxJJwg0ODkIKZYC6GobG1g16GJKXDLe4dv9PBVUhefTyKaO/DbzfLK89OIo33bqOMpDTY4v40CdhKBHay66o0blOE0lvVo3EKuSacfi82WQZVLVAeDnB+3hSnAUrcIWGBPToJC4rzW/kQE6Zq/rxvv/J+ey4lKk9s+3XqbalNDupamxCNL9otWw7ejMc3e1bDbLUANBYfPhwMTGmiM5V3/m7xRefw3z//woeDWSf/VvLm7WaLiCb+8f3QVmSawG0NgWDoMbF2nVKLrEA2KxCLjEe+M4CzM8PtWXNnisrIKbQC2rkqIXWurJhqtOtqeOa+dp1QJkF56Cun33izNCIa3UN5hSXIdWAzU3SuDgqlDuQtDP7tOjRyBq1+KG+TuiYSdSY5HMqN2tpDfiK1VoDy4RpDIaNfbJcPuvfOZ5jW+zwl1IosO6qVJJsjr+jAfrWU/TUnWss7Oca03xgNtG1tGNrWN0TFm6RhkIJhgyycbyDdR4vHkK/1pql0RVWENVwd1P34wTt+cHWyf7JdftQsVauUq9fmH3ZD71QzaJnhAGKKLFI+LB+fMNTeFveq5vZiyjRK190W740tnE2n1TuqVXmnb1sqH/TMOfI/veR3hg=="
+    },
+    "trigger.config.ts": {
+      "contentHash": "6d08c5281e84a9f1c62e126947a8f496",
+      "contents": "eJxVzkEKwjAQheF9TjFkpVCsILhIN4IuvYGI1GYSo0mmTNMSLb27tLhx9/jgh+dCS5xgBI3GRTxSNM7CBIYpgDwkdtYibzQOZadf5bCTlRCYl0ijqXuf/tLVKABapic2SYGc1613mb3X2ef3524NWf8wshAA3MfkAiqQkTQu5MmecUCvQHqyC4U6n3quk6OoYL+dSTvuFFzkpuy4KX8n5bUQ07oSX3CVRlM="
+    },
+    "tsconfig.json": {
+      "contentHash": "ee17fd1c97c735e9f3564e3f5251f125",
+      "contents": "eJxtUU1Lw0AQvedXLHMMbaJehJ4E6cFiEfRYimyyQ7t2v9id1EjJf5fdJNVET8O8N2/2vdlLxhjUVjup0L84ktYEWLFLxhhjQNwfkGDFYP12d3N7D4seV7KCFduBsBoWLJZCEnpeKYw9BoMtwX6Y5krZz01cS77BAQwn6Z5l9XjE+jRjyMuappixay1nGIatFY3CJ0PorZuSOlHR+WBmgr9isKqJYeNE1Rih0I8jPpJn3ARrtuOWX5tlsIoTip6bpfoIbdzokde0jM0oMrVHjYa4mgqcag4ynXyXADacvk/NdYqQAgxwl+p4Wsfp+PNfjMFDmaefKcrg6zKHfTaKuiiJRlQj8Ppe2r1Ecy5EQWG0m+dl/re9pimiqKQvh6GcjfaUwPP/dGo1hZgmZQBsr4bAWIHverjrPuuyb0p5toA="
+    }
+  },
+  "target": "dev"
+}
