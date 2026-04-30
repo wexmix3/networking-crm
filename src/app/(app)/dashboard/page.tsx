@@ -38,6 +38,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<'all' | 'stale' | 'warm' | 'fresh' | 'never'>('all')
+  const [companyFilter, setCompanyFilter] = useState('')
+  const [roleFilter, setRoleFilter] = useState('')
   const [showAdd, setShowAdd] = useState(false)
   const supabase = createBrowserSupabaseClient()
 
@@ -53,6 +55,9 @@ export default function DashboardPage() {
     setLoading(false)
   }
 
+  const companies = Array.from(new Set(contacts.map((c) => c.company).filter(Boolean))).sort() as string[]
+  const roles = Array.from(new Set(contacts.map((c) => c.role).filter(Boolean))).sort() as string[]
+
   const filtered = contacts.filter((c) => {
     const matchQuery =
       !query ||
@@ -61,8 +66,12 @@ export default function DashboardPage() {
       (c.role ?? '').toLowerCase().includes(query.toLowerCase())
     const level = stalenessLevel(c.days_since_contact)
     const matchFilter = filter === 'all' || level === filter
-    return matchQuery && matchFilter
+    const matchCompany = !companyFilter || c.company === companyFilter
+    const matchRole = !roleFilter || c.role === roleFilter
+    return matchQuery && matchFilter && matchCompany && matchRole
   })
+
+  const hasDropdownFilter = companyFilter || roleFilter
 
   const counts = {
     stale: contacts.filter((c) => stalenessLevel(c.days_since_contact) === 'stale').length,
@@ -135,17 +144,53 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Search */}
-      <div className="relative mb-4">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-        <input
-          type="text"
-          placeholder="Search by name, company, or role…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-transparent transition-all shadow-sm"
-          style={{ '--tw-ring-color': '#6366f1' } as React.CSSProperties}
-        />
+      {/* Search + filters */}
+      <div className="flex gap-2 mb-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search by name, company, or role…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-transparent transition-all shadow-sm"
+            style={{ '--tw-ring-color': '#6366f1' } as React.CSSProperties}
+          />
+        </div>
+        {companies.length > 0 && (
+          <select
+            value={companyFilter}
+            onChange={(e) => setCompanyFilter(e.target.value)}
+            className={`px-3 py-2.5 bg-white border rounded-lg text-sm focus:outline-none focus:ring-2 focus:border-transparent transition-all shadow-sm ${
+              companyFilter ? 'border-indigo-400 text-slate-900 font-medium' : 'border-slate-200 text-slate-500'
+            }`}
+            style={{ '--tw-ring-color': '#6366f1' } as React.CSSProperties}
+          >
+            <option value="">Company</option>
+            {companies.map((co) => <option key={co} value={co}>{co}</option>)}
+          </select>
+        )}
+        {roles.length > 0 && (
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            className={`px-3 py-2.5 bg-white border rounded-lg text-sm focus:outline-none focus:ring-2 focus:border-transparent transition-all shadow-sm ${
+              roleFilter ? 'border-indigo-400 text-slate-900 font-medium' : 'border-slate-200 text-slate-500'
+            }`}
+            style={{ '--tw-ring-color': '#6366f1' } as React.CSSProperties}
+          >
+            <option value="">Position</option>
+            {roles.map((r) => <option key={r} value={r}>{r}</option>)}
+          </select>
+        )}
+        {hasDropdownFilter && (
+          <button
+            onClick={() => { setCompanyFilter(''); setRoleFilter('') }}
+            className="px-3 py-2.5 text-sm text-slate-400 hover:text-slate-700 bg-white border border-slate-200 rounded-lg transition-colors shadow-sm"
+          >
+            Clear
+          </button>
+        )}
       </div>
 
       {/* Contact list */}

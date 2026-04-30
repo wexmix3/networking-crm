@@ -3,11 +3,12 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { Users, LayoutDashboard, Upload, Settings, LogOut } from 'lucide-react'
+import { Users, LayoutDashboard, Upload, Settings, LogOut, BarChart2 } from 'lucide-react'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
 
 const links = [
   { href: '/dashboard', label: 'Contacts', icon: LayoutDashboard },
+  { href: '/analytics', label: 'Analytics', icon: BarChart2 },
   { href: '/import', label: 'Import', icon: Upload },
   { href: '/settings', label: 'Settings', icon: Settings },
 ]
@@ -44,7 +45,6 @@ export default function Nav() {
       {/* Nav links */}
       <ul className="flex-1 px-3 py-4 space-y-0.5">
         {links.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href || pathname.startsWith(href.replace('/dashboard', '/contacts'))
           const isContacts = href === '/dashboard' && (pathname === '/dashboard' || pathname.startsWith('/contacts'))
           const isActive = isContacts || (href !== '/dashboard' && (pathname === href || pathname.startsWith(href + '/')))
           return (
