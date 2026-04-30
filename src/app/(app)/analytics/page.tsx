@@ -65,8 +65,8 @@ export default function AnalyticsPage() {
     }, {} as Record<string, number>)
   ).map(([type, count]) => ({ type, count, label: INTERACTION_LABELS[type] ?? type }))
 
-  // 2. Companies breakdown
-  const companyCounts = Object.entries(
+  // 2. Companies breakdown — top 8 + Other
+  const allCompanyCounts = Object.entries(
     contacts.reduce((acc, c) => {
       const key = c.company ?? 'Unknown'
       acc[key] = (acc[key] ?? 0) + 1
@@ -75,6 +75,13 @@ export default function AnalyticsPage() {
   )
     .map(([company, count]) => ({ company, count }))
     .sort((a, b) => b.count - a.count)
+
+  const TOP_N = 8
+  const topCompanies = allCompanyCounts.slice(0, TOP_N)
+  const otherCount = allCompanyCounts.slice(TOP_N).reduce((sum, c) => sum + c.count, 0)
+  const companyCounts = otherCount > 0
+    ? [...topCompanies, { company: `Other (${allCompanyCounts.length - TOP_N} more)`, count: otherCount }]
+    : topCompanies
 
   // 3. Interaction timeline — last 90 days by week
   const now = new Date()
@@ -203,22 +210,29 @@ export default function AnalyticsPage() {
             {companyCounts.length === 0 ? (
               <p className="text-sm text-slate-400 py-8 text-center">No company data yet.</p>
             ) : (
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={companyCounts} layout="vertical" margin={{ left: 0, right: 16 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                  <XAxis type="number" tick={{ fontSize: 11, fill: '#94a3b8' }} allowDecimals={false} />
-                  <YAxis type="category" dataKey="company" tick={{ fontSize: 11, fill: '#64748b' }} width={80} />
-                  <Tooltip
-                    contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}
-                    formatter={(v) => [v, 'Contacts']}
-                  />
-                  <Bar dataKey="count" radius={[0, 4, 4, 0]}>
-                    {companyCounts.map((_, idx) => (
-                      <Cell key={idx} fill={COMPANY_COLORS[idx % COMPANY_COLORS.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="space-y-2.5">
+                {companyCounts.map(({ company, count }, idx) => {
+                  const max = companyCounts[0].count
+                  const pct = Math.round((count / max) * 100)
+                  const isOther = company.startsWith('Other (')
+                  return (
+                    <div key={company} className="flex items-center gap-3">
+                      <span className="text-xs text-slate-400 w-4 shrink-0 text-right">{isOther ? '' : idx + 1}</span>
+                      <span className="text-xs text-slate-700 w-32 shrink-0 truncate" title={company}>{company}</span>
+                      <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{
+                            width: `${pct}%`,
+                            background: isOther ? '#cbd5e1' : COMPANY_COLORS[idx % COMPANY_COLORS.length],
+                          }}
+                        />
+                      </div>
+                      <span className="text-xs font-semibold text-slate-600 w-5 shrink-0 text-right">{count}</span>
+                    </div>
+                  )
+                })}
+              </div>
             )}
           </div>
 
