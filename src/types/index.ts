@@ -15,6 +15,7 @@ export interface Contact {
   tags: string[]
   notes: string | null
   enrichment_status: EnrichmentStatus
+  follow_up_date?: string | null
   created_at: string
   // joined
   last_interaction_date?: string | null

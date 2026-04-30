@@ -20,6 +20,7 @@ export default function EditContactModal({ contact, onClose, onSaved }: Props) {
     email: contact.email ?? '',
     phone: contact.phone ?? '',
     notes: contact.notes ?? '',
+    follow_up_date: contact.follow_up_date ?? '',
   })
 
   function set(field: string, value: string) {
@@ -40,6 +41,7 @@ export default function EditContactModal({ contact, onClose, onSaved }: Props) {
         email: form.email || null,
         phone: form.phone || null,
         notes: form.notes || null,
+        follow_up_date: form.follow_up_date || null,
       }),
     })
     setSaving(false)
@@ -75,6 +77,15 @@ export default function EditContactModal({ contact, onClose, onSaved }: Props) {
               />
             </div>
           ))}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">Follow-up reminder</label>
+            <input
+              type="date"
+              value={form.follow_up_date}
+              onChange={(e) => set('follow_up_date', e.target.value)}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+            />
+          </div>
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1.5">Notes</label>
             <textarea
