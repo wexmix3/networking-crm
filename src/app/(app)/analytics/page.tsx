@@ -42,6 +42,8 @@ const COMPANY_COLORS = ['#6366f1', '#8b5cf6', '#0ea5e9', '#10b981', '#f59e0b', '
 const COMPANY_ALIASES: Record<string, string> = {
   'banco bilbao vizcaya': 'BBVA',
   'bbva': 'BBVA',
+  'stx group': 'STX',
+  'stx': 'STX',
 }
 
 function normalizeCompany(name: string): string {
