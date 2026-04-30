@@ -38,6 +38,20 @@ const INTERACTION_LABELS: Record<string, string> = {
 
 const COMPANY_COLORS = ['#6366f1', '#8b5cf6', '#0ea5e9', '#10b981', '#f59e0b', '#f43f5e', '#14b8a6', '#ec4899']
 
+// Maps known aliases → canonical name (case-insensitive prefix match on keys)
+const COMPANY_ALIASES: Record<string, string> = {
+  'banco bilbao vizcaya': 'BBVA',
+  'bbva': 'BBVA',
+}
+
+function normalizeCompany(name: string): string {
+  const lower = name.toLowerCase().trim()
+  for (const [alias, canonical] of Object.entries(COMPANY_ALIASES)) {
+    if (lower.startsWith(alias)) return canonical
+  }
+  return name
+}
+
 export default function AnalyticsPage() {
   const supabase = createBrowserSupabaseClient()
   const [contacts, setContacts] = useState<RawContact[]>([])
@@ -68,7 +82,7 @@ export default function AnalyticsPage() {
   // 2. Companies breakdown — top 8 + Other
   const allCompanyCounts = Object.entries(
     contacts.reduce((acc, c) => {
-      const key = c.company ?? 'Unknown'
+      const key = c.company ? normalizeCompany(c.company) : 'Unknown'
       acc[key] = (acc[key] ?? 0) + 1
       return acc
     }, {} as Record<string, number>)
