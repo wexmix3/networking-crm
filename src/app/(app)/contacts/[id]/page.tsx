@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Mail, Phone, ExternalLink, Plus, Sparkles, Pencil, Zap } from 'lucide-react'
+import { ArrowLeft, Mail, Phone, ExternalLink, Plus, Sparkles, Pencil, Zap, ClipboardList, X } from 'lucide-react'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
 import type { Contact, Interaction, InteractionType } from '@/types'
 import { stalenessLevel, stalenessColor, stalenessLabel } from '@/types'
@@ -39,6 +39,13 @@ function initials(name: string): string {
   return parts.length >= 2 ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase() : name.slice(0, 2).toUpperCase()
 }
 
+interface MeetingBrief {
+  background: string
+  talking_points: string[]
+  watch_outs: string[]
+  opener: string
+}
+
 export default function ContactDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
@@ -59,6 +66,15 @@ export default function ContactDetailPage() {
   const [logDate, setLogDate] = useState(new Date().toISOString().split('T')[0])
   const [logging, setLogging] = useState(false)
 
+  // Key facts state
+  const [keyFacts, setKeyFacts] = useState<string[]>([])
+  const [newFact, setNewFact] = useState('')
+  const [savingFact, setSavingFact] = useState(false)
+
+  // Meeting prep state
+  const [brief, setBrief] = useState<MeetingBrief | null>(null)
+  const [briefing, setBriefing] = useState(false)
+
   useEffect(() => { load() }, [id])
 
   async function load() {
@@ -68,6 +84,7 @@ export default function ContactDetailPage() {
       supabase.from('crm_interactions').select('*').eq('contact_id', id).order('interaction_date', { ascending: false }),
     ])
     setContact(c as Contact)
+    setKeyFacts((c as Contact)?.key_facts ?? [])
     setInteractions((i as Interaction[]) ?? [])
     setLoading(false)
   }
@@ -115,6 +132,43 @@ export default function ContactDetailPage() {
     }
   }
 
+  async function getMeetingBrief() {
+    setBriefing(true)
+    setBrief(null)
+    try {
+      const res = await fetch(`/api/contacts/${id}/meeting-prep`, { method: 'POST' })
+      const data = await res.json()
+      setBrief(data)
+    } finally {
+      setBriefing(false)
+    }
+  }
+
+  async function addFact() {
+    const fact = newFact.trim()
+    if (!fact) return
+    const updated = [...keyFacts, fact]
+    setSavingFact(true)
+    await fetch(`/api/contacts/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key_facts: updated }),
+    })
+    setKeyFacts(updated)
+    setNewFact('')
+    setSavingFact(false)
+  }
+
+  async function removeFact(fact: string) {
+    const updated = keyFacts.filter((f) => f !== fact)
+    await fetch(`/api/contacts/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key_facts: updated }),
+    })
+    setKeyFacts(updated)
+  }
+
   if (loading) return <div className="p-8 text-sm text-slate-400">Loading…</div>
   if (!contact) return <div className="p-8 text-sm text-slate-500">Contact not found.</div>
 
@@ -145,11 +199,20 @@ export default function ContactDetailPage() {
                     {[contact.role, contact.company].filter(Boolean).join(' · ')}
                   </p>
                 )}
-                <div className="flex items-center gap-2 mt-2.5">
+                <div className="flex items-center gap-2 mt-2.5 flex-wrap">
                   <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${stalenessColor(level)}`}>
                     {stalenessLabel(contact.days_since_contact)}
                   </span>
                   <span className="text-xs text-slate-400">{contact.interaction_count ?? 0} interactions</span>
+                  {/* Tags */}
+                  {(contact.tags ?? []).map((tag) => (
+                    <span
+                      key={tag}
+                      className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100"
+                    >
+                      {tag}
+                    </span>
+                  ))}
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -208,6 +271,112 @@ export default function ContactDetailPage() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Key Facts */}
+      <div className="bg-white rounded-xl border border-slate-200 p-6 mb-4 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900">Key Facts</h2>
+            <p className="text-xs text-slate-400 mt-0.5">Pinned context that feeds into AI features</p>
+          </div>
+        </div>
+        {keyFacts.length > 0 ? (
+          <ul className="space-y-2 mb-4">
+            {keyFacts.map((fact) => (
+              <li key={fact} className="flex items-start gap-2 group">
+                <span className="text-indigo-400 mt-0.5 shrink-0">•</span>
+                <span className="text-sm text-slate-700 flex-1">{fact}</span>
+                <button
+                  onClick={() => removeFact(fact)}
+                  className="text-slate-300 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+                  title="Remove"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-slate-400 mb-4">No key facts yet. Add things like "prefers email over calls" or "interviewing at Google".</p>
+        )}
+        <div className="flex gap-2">
+          <input
+            type="text"
+            placeholder="Add a key fact…"
+            value={newFact}
+            onChange={(e) => setNewFact(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && addFact()}
+            className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+          />
+          <button
+            onClick={addFact}
+            disabled={!newFact.trim() || savingFact}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50 hover:opacity-90 transition-opacity"
+            style={{ background: '#6366f1' }}
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Add
+          </button>
+        </div>
+      </div>
+
+      {/* Meeting Prep */}
+      <div className="bg-white rounded-xl border border-slate-200 p-6 mb-4 shadow-sm">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900">Meeting Prep</h2>
+            <p className="text-xs text-slate-400 mt-0.5">AI brief for your next conversation</p>
+          </div>
+          <button
+            onClick={getMeetingBrief}
+            disabled={briefing}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white rounded-lg disabled:opacity-50 transition-opacity hover:opacity-90"
+            style={{ background: '#10b981' }}
+          >
+            <ClipboardList className="w-3.5 h-3.5" />
+            {briefing ? 'Preparing…' : 'Prep me'}
+          </button>
+        </div>
+
+        {brief ? (
+          <div className="space-y-4">
+            <div className="rounded-lg bg-slate-50 border border-slate-100 px-4 py-3">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Background</p>
+              <p className="text-sm text-slate-700 leading-relaxed">{brief.background}</p>
+            </div>
+            <div className="rounded-lg bg-emerald-50 border border-emerald-100 px-4 py-3">
+              <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide mb-2">Talking Points</p>
+              <ul className="space-y-1.5">
+                {brief.talking_points.map((pt, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
+                    <span className="text-emerald-500 mt-0.5 shrink-0">•</span>
+                    {pt}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            {brief.watch_outs?.length > 0 && (
+              <div className="rounded-lg bg-amber-50 border border-amber-100 px-4 py-3">
+                <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-2">Watch Out</p>
+                <ul className="space-y-1.5">
+                  {brief.watch_outs.map((w, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
+                      <span className="text-amber-500 mt-0.5 shrink-0">⚠</span>
+                      {w}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <div className="rounded-lg bg-indigo-50 border border-indigo-100 px-4 py-3">
+              <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wide mb-1.5">Suggested Opener</p>
+              <p className="text-sm text-slate-700 italic">"{brief.opener}"</p>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-slate-400">Click "Prep me" to get a tailored brief before your meeting or call.</p>
+        )}
       </div>
 
       {/* AI draft */}

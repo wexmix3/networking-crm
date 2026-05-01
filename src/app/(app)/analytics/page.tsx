@@ -14,6 +14,14 @@ import { format, subDays, startOfWeek, eachWeekOfInterval } from 'date-fns'
 interface RawContact {
   company: string | null
   created_at: string
+  email: string | null
+  phone: string | null
+  role: string | null
+  linkedin_url: string | null
+  notes: string | null
+  tags: string[]
+  follow_up_date: string | null
+  days_since_contact: number | null
 }
 
 interface RawInteraction {
@@ -38,7 +46,6 @@ const INTERACTION_LABELS: Record<string, string> = {
 
 const COMPANY_COLORS = ['#6366f1', '#8b5cf6', '#0ea5e9', '#10b981', '#f59e0b', '#f43f5e', '#14b8a6', '#ec4899']
 
-// Maps known aliases → canonical name (case-insensitive prefix match on keys)
 const COMPANY_ALIASES: Record<string, string> = {
   'banco bilbao vizcaya': 'BBVA',
   'bbva': 'BBVA',
@@ -54,6 +61,31 @@ function normalizeCompany(name: string): string {
   return name
 }
 
+// Profile completeness for a contact (same logic as dashboard)
+const COMPLETENESS_FIELDS: (keyof RawContact)[] = ['company', 'role', 'email', 'phone', 'linkedin_url', 'notes', 'follow_up_date']
+function contactCompleteness(c: RawContact): number {
+  const filled = COMPLETENESS_FIELDS.filter((f) => {
+    const v = c[f]
+    if (Array.isArray(v)) return v.length > 0
+    return v !== null && v !== undefined && v !== ''
+  }).length
+  const hasTag = (c.tags ?? []).length > 0
+  return Math.round(((filled + (hasTag ? 1 : 0)) / (COMPLETENESS_FIELDS.length + 1)) * 100)
+}
+
+function healthScoreColor(score: number): string {
+  if (score >= 70) return '#10b981'
+  if (score >= 40) return '#f59e0b'
+  return '#ef4444'
+}
+
+function healthScoreLabel(score: number): string {
+  if (score >= 80) return 'Excellent'
+  if (score >= 60) return 'Good'
+  if (score >= 40) return 'Fair'
+  return 'Needs work'
+}
+
 export default function AnalyticsPage() {
   const supabase = createBrowserSupabaseClient()
   const [contacts, setContacts] = useState<RawContact[]>([])
@@ -63,7 +95,9 @@ export default function AnalyticsPage() {
   useEffect(() => {
     async function load() {
       const [{ data: c }, { data: i }] = await Promise.all([
-        supabase.from('crm_contacts').select('company, created_at'),
+        supabase
+          .from('crm_contacts_with_staleness')
+          .select('company, created_at, email, phone, role, linkedin_url, notes, tags, follow_up_date, days_since_contact'),
         supabase.from('crm_interactions').select('type, interaction_date'),
       ])
       setContacts((c as RawContact[]) ?? [])
@@ -131,6 +165,34 @@ export default function AnalyticsPage() {
     })
   })()
 
+  // 5. Network health score
+  const healthMetrics = (() => {
+    if (contacts.length === 0) return null
+    const contactedRecently = contacts.filter(
+      (c) => c.days_since_contact !== null && c.days_since_contact <= 90
+    ).length
+    const activeRate = Math.round((contactedRecently / contacts.length) * 100)
+
+    const avgFillRate = Math.round(
+      contacts.reduce((sum, c) => sum + contactCompleteness(c), 0) / contacts.length
+    )
+
+    const contactedEver = contacts.filter((c) => c.days_since_contact !== null)
+    const avgStaleness = contactedEver.length > 0
+      ? Math.round(contactedEver.reduce((sum, c) => sum + (c.days_since_contact ?? 0), 0) / contactedEver.length)
+      : null
+    // Staleness score: 0 days = 100, 90+ days = 0
+    const stalenessScore = avgStaleness !== null ? Math.max(0, Math.round(100 - (avgStaleness / 90) * 100)) : 50
+
+    const freshCount = contacts.filter((c) => c.days_since_contact !== null && c.days_since_contact <= 30).length
+    const freshRate = Math.round((freshCount / contacts.length) * 100)
+
+    // Composite: 40% active rate, 30% fill rate, 30% staleness score
+    const composite = Math.round(activeRate * 0.4 + avgFillRate * 0.3 + stalenessScore * 0.3)
+
+    return { activeRate, avgFillRate, stalenessScore, freshRate, composite, avgStaleness }
+  })()
+
   const totalInteractions = interactions.length
   const topCompany = companyCounts[0]
 
@@ -165,141 +227,205 @@ export default function AnalyticsPage() {
           <p className="text-slate-400 text-sm mt-1">Add contacts and log interactions to see your analytics.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4">
+        <>
+          {/* Network Health Score */}
+          {healthMetrics && (
+            <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm mb-4">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h2 className="text-sm font-semibold text-slate-900">Network Health Score</h2>
+                  <p className="text-xs text-slate-400 mt-0.5">How well you're maintaining your network</p>
+                </div>
+                <div className="text-right">
+                  <span
+                    className="text-3xl font-bold"
+                    style={{ color: healthScoreColor(healthMetrics.composite) }}
+                  >
+                    {healthMetrics.composite}
+                  </span>
+                  <span className="text-sm text-slate-400">/100</span>
+                  <p className="text-xs font-medium mt-0.5" style={{ color: healthScoreColor(healthMetrics.composite) }}>
+                    {healthScoreLabel(healthMetrics.composite)}
+                  </p>
+                </div>
+              </div>
 
-          {/* Interaction type breakdown */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-            <h2 className="text-sm font-semibold text-slate-900 mb-1">Interaction breakdown</h2>
-            <p className="text-xs text-slate-400 mb-4">How you stay in touch</p>
-            {interactionBreakdown.length === 0 ? (
-              <p className="text-sm text-slate-400 py-8 text-center">No interactions logged yet.</p>
-            ) : (
-              <>
-                <div className="relative">
-                  <ResponsiveContainer width="100%" height={200}>
-                    <PieChart>
-                      <Pie
-                        data={interactionBreakdown}
-                        dataKey="count"
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={55}
-                        outerRadius={80}
-                        paddingAngle={3}
-                      >
-                        {interactionBreakdown.map((entry) => (
-                          <Cell key={entry.type} fill={INTERACTION_COLORS[entry.type] ?? '#94a3b8'} />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        formatter={(value, _name, props) => [value, props.payload.label]}
-                        contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  {/* Donut center label */}
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-slate-900">{totalInteractions}</p>
-                      <p className="text-xs text-slate-400">total</p>
+              {/* Score bar */}
+              <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden mb-5">
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{ width: `${healthMetrics.composite}%`, background: healthScoreColor(healthMetrics.composite) }}
+                />
+              </div>
+
+              {/* Component metrics */}
+              <div className="grid grid-cols-3 gap-4">
+                {[
+                  {
+                    label: 'Active (90d)',
+                    value: `${healthMetrics.activeRate}%`,
+                    desc: `${contacts.filter((c) => c.days_since_contact !== null && c.days_since_contact <= 90).length} of ${contacts.length} contacts`,
+                    color: healthScoreColor(healthMetrics.activeRate),
+                  },
+                  {
+                    label: 'Profile fill rate',
+                    value: `${healthMetrics.avgFillRate}%`,
+                    desc: 'Average fields completed',
+                    color: healthScoreColor(healthMetrics.avgFillRate),
+                  },
+                  {
+                    label: 'Avg staleness',
+                    value: healthMetrics.avgStaleness !== null ? `${healthMetrics.avgStaleness}d` : 'N/A',
+                    desc: 'Days since last contact (avg)',
+                    color: healthScoreColor(healthMetrics.stalenessScore),
+                  },
+                ].map(({ label, value, desc, color }) => (
+                  <div key={label} className="bg-slate-50 rounded-lg p-3.5">
+                    <p className="text-xs text-slate-500 font-medium">{label}</p>
+                    <p className="text-xl font-bold mt-1" style={{ color }}>{value}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+
+            {/* Interaction type breakdown */}
+            <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+              <h2 className="text-sm font-semibold text-slate-900 mb-1">Interaction breakdown</h2>
+              <p className="text-xs text-slate-400 mb-4">How you stay in touch</p>
+              {interactionBreakdown.length === 0 ? (
+                <p className="text-sm text-slate-400 py-8 text-center">No interactions logged yet.</p>
+              ) : (
+                <>
+                  <div className="relative">
+                    <ResponsiveContainer width="100%" height={200}>
+                      <PieChart>
+                        <Pie
+                          data={interactionBreakdown}
+                          dataKey="count"
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={55}
+                          outerRadius={80}
+                          paddingAngle={3}
+                        >
+                          {interactionBreakdown.map((entry) => (
+                            <Cell key={entry.type} fill={INTERACTION_COLORS[entry.type] ?? '#94a3b8'} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          formatter={(value, _name, props) => [value, props.payload.label]}
+                          contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    {/* Donut center label */}
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="text-center">
+                        <p className="text-2xl font-bold text-slate-900">{totalInteractions}</p>
+                        <p className="text-xs text-slate-400">total</p>
+                      </div>
                     </div>
                   </div>
-                </div>
-                {/* HTML legend */}
-                <div className="grid grid-cols-2 gap-1.5 mt-3">
-                  {interactionBreakdown.map((entry) => (
-                    <div key={entry.type} className="flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: INTERACTION_COLORS[entry.type] ?? '#94a3b8' }} />
-                      <span className="text-xs text-slate-600 truncate">{entry.label}</span>
-                      <span className="text-xs text-slate-400 ml-auto">{entry.count}</span>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Companies breakdown */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-            <h2 className="text-sm font-semibold text-slate-900 mb-1">Companies</h2>
-            <p className="text-xs text-slate-400 mb-4">Contacts per organisation</p>
-            {companyCounts.length === 0 ? (
-              <p className="text-sm text-slate-400 py-8 text-center">No company data yet.</p>
-            ) : (
-              <div className="space-y-2.5">
-                {companyCounts.map(({ company, count }, idx) => {
-                  const max = companyCounts[0].count
-                  const pct = Math.round((count / max) * 100)
-                  const isOther = company.startsWith('Other (')
-                  return (
-                    <div key={company} className="flex items-center gap-3">
-                      <span className="text-xs text-slate-400 w-4 shrink-0 text-right">{isOther ? '' : idx + 1}</span>
-                      <span className="text-xs text-slate-700 w-32 shrink-0 truncate" title={company}>{company}</span>
-                      <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all"
-                          style={{
-                            width: `${pct}%`,
-                            background: isOther ? '#cbd5e1' : COMPANY_COLORS[idx % COMPANY_COLORS.length],
-                          }}
-                        />
+                  {/* HTML legend */}
+                  <div className="grid grid-cols-2 gap-1.5 mt-3">
+                    {interactionBreakdown.map((entry) => (
+                      <div key={entry.type} className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: INTERACTION_COLORS[entry.type] ?? '#94a3b8' }} />
+                        <span className="text-xs text-slate-600 truncate">{entry.label}</span>
+                        <span className="text-xs text-slate-400 ml-auto">{entry.count}</span>
                       </div>
-                      <span className="text-xs font-semibold text-slate-600 w-5 shrink-0 text-right">{count}</span>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
 
-          {/* Interaction timeline */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-            <h2 className="text-sm font-semibold text-slate-900 mb-1">Interaction timeline</h2>
-            <p className="text-xs text-slate-400 mb-4">Last 90 days by week</p>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={timelineData} margin={{ left: -16 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="week" tick={{ fontSize: 10, fill: '#94a3b8' }} interval={2} />
-                <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} allowDecimals={false} />
-                <Tooltip
-                  contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}
-                  formatter={(v) => [v, 'Interactions']}
-                />
-                <Bar dataKey="count" fill="#6366f1" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+            {/* Companies breakdown */}
+            <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+              <h2 className="text-sm font-semibold text-slate-900 mb-1">Companies</h2>
+              <p className="text-xs text-slate-400 mb-4">Contacts per organisation</p>
+              {companyCounts.length === 0 ? (
+                <p className="text-sm text-slate-400 py-8 text-center">No company data yet.</p>
+              ) : (
+                <div className="space-y-2.5">
+                  {companyCounts.map(({ company, count }, idx) => {
+                    const max = companyCounts[0].count
+                    const pct = Math.round((count / max) * 100)
+                    const isOther = company.startsWith('Other (')
+                    return (
+                      <div key={company} className="flex items-center gap-3">
+                        <span className="text-xs text-slate-400 w-4 shrink-0 text-right">{isOther ? '' : idx + 1}</span>
+                        <span className="text-xs text-slate-700 w-32 shrink-0 truncate" title={company}>{company}</span>
+                        <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all"
+                            style={{
+                              width: `${pct}%`,
+                              background: isOther ? '#cbd5e1' : COMPANY_COLORS[idx % COMPANY_COLORS.length],
+                            }}
+                          />
+                        </div>
+                        <span className="text-xs font-semibold text-slate-600 w-5 shrink-0 text-right">{count}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
 
-          {/* Contact growth */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-            <h2 className="text-sm font-semibold text-slate-900 mb-1">Network growth</h2>
-            <p className="text-xs text-slate-400 mb-4">Cumulative contacts over time</p>
-            {growthData.length <= 1 ? (
-              <p className="text-sm text-slate-400 py-8 text-center">Add more contacts over time to see growth.</p>
-            ) : (
+            {/* Interaction timeline */}
+            <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+              <h2 className="text-sm font-semibold text-slate-900 mb-1">Interaction timeline</h2>
+              <p className="text-xs text-slate-400 mb-4">Last 90 days by week</p>
               <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={growthData} margin={{ left: -16 }}>
+                <BarChart data={timelineData} margin={{ left: -16 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="week" tick={{ fontSize: 10, fill: '#94a3b8' }} interval={Math.floor(growthData.length / 5)} />
+                  <XAxis dataKey="week" tick={{ fontSize: 10, fill: '#94a3b8' }} interval={2} />
                   <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} allowDecimals={false} />
                   <Tooltip
                     contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}
-                    formatter={(v) => [v, 'Contacts']}
+                    formatter={(v) => [v, 'Interactions']}
                   />
-                  <Line
-                    type="monotone"
-                    dataKey="total"
-                    stroke="#8b5cf6"
-                    strokeWidth={2}
-                    dot={false}
-                    activeDot={{ r: 4, fill: '#8b5cf6' }}
-                  />
-                </LineChart>
+                  <Bar dataKey="count" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                </BarChart>
               </ResponsiveContainer>
-            )}
-          </div>
+            </div>
 
-        </div>
+            {/* Contact growth */}
+            <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+              <h2 className="text-sm font-semibold text-slate-900 mb-1">Network growth</h2>
+              <p className="text-xs text-slate-400 mb-4">Cumulative contacts over time</p>
+              {growthData.length <= 1 ? (
+                <p className="text-sm text-slate-400 py-8 text-center">Add more contacts over time to see growth.</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={200}>
+                  <LineChart data={growthData} margin={{ left: -16 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="week" tick={{ fontSize: 10, fill: '#94a3b8' }} interval={Math.floor(growthData.length / 5)} />
+                    <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} allowDecimals={false} />
+                    <Tooltip
+                      contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}
+                      formatter={(v) => [v, 'Contacts']}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="total"
+                      stroke="#8b5cf6"
+                      strokeWidth={2}
+                      dot={false}
+                      activeDot={{ r: 4, fill: '#8b5cf6' }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+
+          </div>
+        </>
       )}
     </div>
   )

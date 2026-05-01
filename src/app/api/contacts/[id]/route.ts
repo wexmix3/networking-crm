@@ -10,7 +10,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const allowed = ['name', 'company', 'role', 'email', 'phone', 'linkedin_url', 'notes', 'tags', 'follow_up_date']
+  const allowed = ['name', 'company', 'role', 'email', 'phone', 'linkedin_url', 'notes', 'tags', 'key_facts', 'follow_up_date']
   const updates = Object.fromEntries(
     Object.entries(body).filter(([k]) => allowed.includes(k))
   )

@@ -13,6 +13,7 @@ export interface Contact {
   phone: string | null
   source: string | null
   tags: string[]
+  key_facts: string[]
   notes: string | null
   enrichment_status: EnrichmentStatus
   follow_up_date?: string | null

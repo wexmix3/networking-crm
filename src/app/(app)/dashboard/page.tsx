@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
-import { Plus, Search, Upload, Users, Sparkles, ChevronDown, ChevronUp, Bell } from 'lucide-react'
+import { Plus, Search, Upload, Users, Sparkles, ChevronDown, ChevronUp, Bell, Tag } from 'lucide-react'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
 import type { Contact, InteractionType } from '@/types'
 import { stalenessLevel, stalenessColor, stalenessLabel } from '@/types'
@@ -37,6 +37,28 @@ function reminderLabel(dateStr: string): { label: string; color: string } | null
   return null
 }
 
+// 8 profile fields — higher = more complete
+const COMPLETENESS_FIELDS: (keyof Contact)[] = [
+  'company', 'role', 'email', 'phone', 'linkedin_url', 'notes', 'follow_up_date',
+]
+
+function completeness(c: Contact): number {
+  const filled = COMPLETENESS_FIELDS.filter((f) => {
+    const v = c[f]
+    if (Array.isArray(v)) return v.length > 0
+    return v !== null && v !== undefined && v !== ''
+  }).length
+  // tags count too
+  const hasTag = (c.tags ?? []).length > 0
+  return Math.round(((filled + (hasTag ? 1 : 0)) / (COMPLETENESS_FIELDS.length + 1)) * 100)
+}
+
+function completenessColor(pct: number): string {
+  if (pct >= 75) return '#10b981'
+  if (pct >= 40) return '#f59e0b'
+  return '#ef4444'
+}
+
 const FILTER_LABELS: Record<string, string> = {
   stale: 'Overdue',
   warm: 'Due soon',
@@ -61,6 +83,7 @@ export default function DashboardPage() {
   const [filter, setFilter] = useState<'all' | 'stale' | 'warm' | 'fresh' | 'never'>('all')
   const [companyFilter, setCompanyFilter] = useState('')
   const [roleFilter, setRoleFilter] = useState('')
+  const [tagFilter, setTagFilter] = useState('')
   const [showAdd, setShowAdd] = useState(false)
 
   // Quick-log state
@@ -117,6 +140,7 @@ export default function DashboardPage() {
 
   const companies = Array.from(new Set(contacts.map((c) => c.company).filter(Boolean))).sort() as string[]
   const roles = Array.from(new Set(contacts.map((c) => c.role).filter(Boolean))).sort() as string[]
+  const allTags = Array.from(new Set(contacts.flatMap((c) => c.tags ?? []))).sort()
 
   const filtered = contacts.filter((c) => {
     const matchQuery =
@@ -128,10 +152,11 @@ export default function DashboardPage() {
     const matchFilter = filter === 'all' || level === filter
     const matchCompany = !companyFilter || c.company === companyFilter
     const matchRole = !roleFilter || c.role === roleFilter
-    return matchQuery && matchFilter && matchCompany && matchRole
+    const matchTag = !tagFilter || (c.tags ?? []).includes(tagFilter)
+    return matchQuery && matchFilter && matchCompany && matchRole && matchTag
   })
 
-  const hasDropdownFilter = companyFilter || roleFilter
+  const hasDropdownFilter = companyFilter || roleFilter || tagFilter
 
   const counts = {
     stale: contacts.filter((c) => stalenessLevel(c.days_since_contact) === 'stale').length,
@@ -283,8 +308,8 @@ export default function DashboardPage() {
       )}
 
       {/* Search + filters */}
-      <div className="flex gap-2 mb-4">
-        <div className="relative flex-1">
+      <div className="flex gap-2 mb-4 flex-wrap">
+        <div className="relative flex-1 min-w-48">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
@@ -321,9 +346,22 @@ export default function DashboardPage() {
             {roles.map((r) => <option key={r} value={r}>{r}</option>)}
           </select>
         )}
+        {allTags.length > 0 && (
+          <select
+            value={tagFilter}
+            onChange={(e) => setTagFilter(e.target.value)}
+            className={`px-3 py-2.5 bg-white border rounded-lg text-sm focus:outline-none focus:ring-2 focus:border-transparent transition-all shadow-sm ${
+              tagFilter ? 'border-indigo-400 text-slate-900 font-medium' : 'border-slate-200 text-slate-500'
+            }`}
+            style={{ '--tw-ring-color': '#6366f1' } as React.CSSProperties}
+          >
+            <option value="">Tag</option>
+            {allTags.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+        )}
         {hasDropdownFilter && (
           <button
-            onClick={() => { setCompanyFilter(''); setRoleFilter('') }}
+            onClick={() => { setCompanyFilter(''); setRoleFilter(''); setTagFilter('') }}
             className="px-3 py-2.5 text-sm text-slate-400 hover:text-slate-700 bg-white border border-slate-200 rounded-lg transition-colors shadow-sm"
           >
             Clear
@@ -363,17 +401,28 @@ export default function DashboardPage() {
             const color = avatarColor(c.name)
             const reminder = c.follow_up_date ? reminderLabel(c.follow_up_date) : null
             const isQuickLogging = quickLogId === c.id
+            const pct = completeness(c)
+            const pctColor = completenessColor(pct)
 
             return (
               <div key={c.id} className={idx !== 0 ? 'border-t border-slate-100' : ''}>
                 {/* Contact row */}
                 <div className="flex items-center gap-2 px-5 py-3.5 hover:bg-slate-50 transition-colors group">
                   <Link href={`/contacts/${c.id}`} className="flex items-center gap-4 flex-1 min-w-0">
-                    <div
-                      className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
-                      style={{ background: color }}
-                    >
-                      {initials(c.name)}
+                    {/* Avatar with completeness ring */}
+                    <div className="relative shrink-0">
+                      <div
+                        className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                        style={{ background: color }}
+                      >
+                        {initials(c.name)}
+                      </div>
+                      {/* Completeness arc as a small colored dot in corner */}
+                      <div
+                        className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white"
+                        style={{ background: pctColor }}
+                        title={`Profile ${pct}% complete`}
+                      />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
@@ -388,6 +437,22 @@ export default function DashboardPage() {
                       <p className="text-xs text-slate-400 truncate mt-0.5">
                         {[c.role, c.company].filter(Boolean).join(' · ') || 'No company info'}
                       </p>
+                      {/* Tags row */}
+                      {(c.tags ?? []).length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {(c.tags ?? []).slice(0, 3).map((tag) => (
+                            <span
+                              key={tag}
+                              className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-indigo-50 text-indigo-600"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                          {(c.tags ?? []).length > 3 && (
+                            <span className="text-[10px] text-slate-400">+{(c.tags ?? []).length - 3} more</span>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div className="shrink-0 text-right flex flex-col items-end gap-1">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${stalenessColor(level)}`}>
@@ -400,6 +465,13 @@ export default function DashboardPage() {
                           </span>
                         )}
                         <p className="text-xs text-slate-400">{c.interaction_count ?? 0} interactions</p>
+                      </div>
+                      {/* Completeness bar */}
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-16 h-1 bg-slate-100 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: pctColor }} />
+                        </div>
+                        <span className="text-[10px] text-slate-400">{pct}%</span>
                       </div>
                     </div>
                   </Link>

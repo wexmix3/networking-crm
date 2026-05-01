@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, KeyboardEvent } from 'react'
 import { X } from 'lucide-react'
 import type { Contact } from '@/types'
 
@@ -22,9 +22,29 @@ export default function EditContactModal({ contact, onClose, onSaved }: Props) {
     notes: contact.notes ?? '',
     follow_up_date: contact.follow_up_date ?? '',
   })
+  const [tags, setTags] = useState<string[]>(contact.tags ?? [])
+  const [tagInput, setTagInput] = useState('')
+  const tagInputRef = useRef<HTMLInputElement>(null)
 
   function set(field: string, value: string) {
     setForm((f) => ({ ...f, [field]: value }))
+  }
+
+  function addTag() {
+    const t = tagInput.trim().toLowerCase()
+    if (t && !tags.includes(t)) setTags((prev) => [...prev, t])
+    setTagInput('')
+  }
+
+  function removeTag(tag: string) {
+    setTags((prev) => prev.filter((t) => t !== tag))
+  }
+
+  function onTagKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag() }
+    if (e.key === 'Backspace' && !tagInput && tags.length > 0) {
+      setTags((prev) => prev.slice(0, -1))
+    }
   }
 
   async function save() {
@@ -42,6 +62,7 @@ export default function EditContactModal({ contact, onClose, onSaved }: Props) {
         phone: form.phone || null,
         notes: form.notes || null,
         follow_up_date: form.follow_up_date || null,
+        tags,
       }),
     })
     setSaving(false)
@@ -77,6 +98,43 @@ export default function EditContactModal({ contact, onClose, onSaved }: Props) {
               />
             </div>
           ))}
+
+          {/* Tags */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">Tags</label>
+            <div
+              className="flex flex-wrap gap-1.5 min-h-[42px] px-3 py-2 border border-gray-200 rounded-lg focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent transition-all cursor-text"
+              onClick={() => tagInputRef.current?.focus()}
+            >
+              {tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100"
+                >
+                  {tag}
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); removeTag(tag) }}
+                    className="text-indigo-400 hover:text-indigo-700 transition-colors leading-none"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+              <input
+                ref={tagInputRef}
+                type="text"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={onTagKeyDown}
+                onBlur={addTag}
+                placeholder={tags.length === 0 ? 'Add tags (press Enter)…' : ''}
+                className="flex-1 min-w-[120px] text-sm outline-none bg-transparent placeholder:text-gray-400"
+              />
+            </div>
+            <p className="text-xs text-gray-400 mt-1">Press Enter or comma to add a tag</p>
+          </div>
+
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1.5">Follow-up reminder</label>
             <input
