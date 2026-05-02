@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Mail, Phone, ExternalLink, Plus, Sparkles, Pencil, Zap, ClipboardList, X } from 'lucide-react'
+import { ArrowLeft, Mail, Phone, ExternalLink, Plus, Sparkles, Pencil, Zap, ClipboardList, X, Copy, Check, CheckCheck, Trash2 } from 'lucide-react'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
 import type { Contact, Interaction, InteractionType } from '@/types'
 import { stalenessLevel, stalenessColor, stalenessLabel } from '@/types'
@@ -61,6 +61,11 @@ export default function ContactDetailPage() {
   const [enriching, setEnriching] = useState(false)
   const [enriched, setEnriched] = useState(false)
 
+  // Inline follow-up date
+  const [followUpDate, setFollowUpDate] = useState<string>('')
+  const [savingFollowUp, setSavingFollowUp] = useState(false)
+  const [followUpSaved, setFollowUpSaved] = useState(false)
+
   const [logType, setLogType] = useState<InteractionType>('emailed')
   const [logNote, setLogNote] = useState('')
   const [logDate, setLogDate] = useState(new Date().toISOString().split('T')[0])
@@ -75,6 +80,13 @@ export default function ContactDetailPage() {
   const [brief, setBrief] = useState<MeetingBrief | null>(null)
   const [briefing, setBriefing] = useState(false)
 
+  // Copy draft state
+  const [copied, setCopied] = useState(false)
+
+  // Contacted today state
+  const [contactedToday, setContactedToday] = useState(false)
+  const [contactingToday, setContactingToday] = useState(false)
+
   useEffect(() => { load() }, [id])
 
   async function load() {
@@ -85,6 +97,7 @@ export default function ContactDetailPage() {
     ])
     setContact(c as Contact)
     setKeyFacts((c as Contact)?.key_facts ?? [])
+    setFollowUpDate((c as Contact)?.follow_up_date ?? '')
     setInteractions((i as Interaction[]) ?? [])
     setLoading(false)
   }
@@ -142,6 +155,46 @@ export default function ContactDetailPage() {
     } finally {
       setBriefing(false)
     }
+  }
+
+  async function saveFollowUpDate(date: string) {
+    setSavingFollowUp(true)
+    await fetch(`/api/contacts/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ follow_up_date: date || null }),
+    })
+    setFollowUpDate(date)
+    setSavingFollowUp(false)
+    setFollowUpSaved(true)
+    setTimeout(() => setFollowUpSaved(false), 2000)
+  }
+
+  async function deleteInteraction(interactionId: string) {
+    await fetch(`/api/contacts/${id}/interactions/${interactionId}`, { method: 'DELETE' })
+    setInteractions((prev) => prev.filter((i) => i.id !== interactionId))
+  }
+
+  async function copyDraft() {
+    await navigator.clipboard.writeText(aiDraft)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  async function markContactedToday() {
+    setContactingToday(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    await supabase.from('crm_interactions').insert({
+      contact_id: id,
+      user_id: user.id,
+      type: 'met',
+      note: null,
+      interaction_date: new Date().toISOString().split('T')[0],
+    })
+    setContactedToday(true)
+    setContactingToday(false)
+    load()
   }
 
   async function addFact() {
@@ -215,7 +268,19 @@ export default function ContactDetailPage() {
                   ))}
                 </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+                <button
+                  onClick={markContactedToday}
+                  disabled={contactingToday || contactedToday}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-60"
+                  style={contactedToday
+                    ? { background: '#f0fdf4', color: '#16a34a' }
+                    : { background: '#ecfdf5', color: '#059669' }
+                  }
+                >
+                  {contactedToday ? <CheckCheck className="w-3.5 h-3.5" /> : <Check className="w-3.5 h-3.5" />}
+                  {contactingToday ? 'Logging…' : contactedToday ? 'Logged!' : 'Contacted today'}
+                </button>
                 <button
                   onClick={() => setShowEdit(true)}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
@@ -262,6 +327,28 @@ export default function ContactDetailPage() {
                   <ExternalLink className="w-3.5 h-3.5" /> LinkedIn
                 </a>
               )}
+            </div>
+
+            {/* Inline follow-up date */}
+            <div className="flex items-center gap-2 mt-3">
+              <label className="text-xs text-slate-400 shrink-0">Follow-up by</label>
+              <input
+                type="date"
+                value={followUpDate}
+                onChange={(e) => saveFollowUpDate(e.target.value)}
+                disabled={savingFollowUp}
+                className="px-2.5 py-1 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all disabled:opacity-50"
+              />
+              {followUpDate && (
+                <button
+                  onClick={() => saveFollowUpDate('')}
+                  className="text-xs text-slate-300 hover:text-red-400 transition-colors"
+                  title="Clear follow-up date"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {followUpSaved && <span className="text-xs text-emerald-500">Saved</span>}
             </div>
 
             {contact.notes && (
@@ -397,8 +484,19 @@ export default function ContactDetailPage() {
           </button>
         </div>
         {aiDraft ? (
-          <div className="rounded-lg px-4 py-3.5 text-sm text-slate-700 whitespace-pre-wrap leading-relaxed border border-violet-100" style={{ background: '#faf5ff' }}>
-            {aiDraft}
+          <div>
+            <div className="flex justify-end mb-2">
+              <button
+                onClick={copyDraft}
+                className="flex items-center gap-1.5 text-xs font-medium text-slate-400 hover:text-slate-700 transition-colors"
+              >
+                {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                {copied ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+            <div className="rounded-lg px-4 py-3.5 text-sm text-slate-700 whitespace-pre-wrap leading-relaxed border border-violet-100" style={{ background: '#faf5ff' }}>
+              {aiDraft}
+            </div>
           </div>
         ) : (
           <p className="text-sm text-slate-400">Click "Generate draft" to get a personalized follow-up message.</p>
@@ -475,7 +573,7 @@ export default function ContactDetailPage() {
         ) : (
           <ol className="space-y-3">
             {interactions.map((i) => (
-              <li key={i.id} className="flex items-start gap-3">
+              <li key={i.id} className="flex items-start gap-3 group">
                 <div
                   className="w-2 h-2 rounded-full mt-1.5 shrink-0"
                   style={{ background: INTERACTION_COLORS[i.type] }}
@@ -491,6 +589,13 @@ export default function ContactDetailPage() {
                   </div>
                   {i.note && <p className="text-sm text-slate-600 mt-0.5">{i.note}</p>}
                 </div>
+                <button
+                  onClick={() => deleteInteraction(i.id)}
+                  className="shrink-0 text-slate-200 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 mt-0.5"
+                  title="Delete interaction"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
               </li>
             ))}
           </ol>

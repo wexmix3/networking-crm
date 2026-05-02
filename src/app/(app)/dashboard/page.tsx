@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
-import { Plus, Search, Upload, Users, Sparkles, ChevronDown, ChevronUp, Bell, Tag } from 'lucide-react'
+import { Plus, Search, Upload, Users, Sparkles, ChevronDown, ChevronUp, Bell, Tag, Download } from 'lucide-react'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
 import type { Contact, InteractionType } from '@/types'
 import { stalenessLevel, stalenessColor, stalenessLabel } from '@/types'
@@ -80,10 +80,11 @@ export default function DashboardPage() {
   const [contacts, setContacts] = useState<Contact[]>([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
-  const [filter, setFilter] = useState<'all' | 'stale' | 'warm' | 'fresh' | 'never'>('all')
+  const [filter, setFilter] = useState<'all' | 'stale' | 'warm' | 'fresh' | 'never' | 'reminder'>('all')
   const [companyFilter, setCompanyFilter] = useState('')
   const [roleFilter, setRoleFilter] = useState('')
   const [tagFilter, setTagFilter] = useState('')
+  const [sortBy, setSortBy] = useState<'staleness' | 'name' | 'interactions' | 'reminder'>('staleness')
   const [showAdd, setShowAdd] = useState(false)
 
   // Quick-log state
@@ -98,6 +99,8 @@ export default function DashboardPage() {
   const [suggestionsLoading, setSuggestionsLoading] = useState(false)
   const [suggestionsOpen, setSuggestionsOpen] = useState(false)
   const [suggestionsLoaded, setSuggestionsLoaded] = useState(false)
+  const [loggedSuggestions, setLoggedSuggestions] = useState<Set<string>>(new Set())
+  const [loggingSuggestion, setLoggingSuggestion] = useState<string | null>(null)
 
   // First-run banner: show until dismissed or contacts exist
   const [showWelcomeBanner, setShowWelcomeBanner] = useState(() => {
@@ -126,6 +129,33 @@ export default function DashboardPage() {
     else setLoadingMore(false)
   }
 
+  function exportCSV() {
+    const headers = ['Name', 'Company', 'Role', 'Email', 'Phone', 'LinkedIn URL', 'Tags', 'Notes', 'Follow-up Date', 'Days Since Contact', 'Interactions']
+    const rows = contacts.map((c) => [
+      c.name,
+      c.company ?? '',
+      c.role ?? '',
+      c.email ?? '',
+      c.phone ?? '',
+      c.linkedin_url ?? '',
+      (c.tags ?? []).join('; '),
+      (c.notes ?? '').replace(/\n/g, ' '),
+      c.follow_up_date ?? '',
+      c.days_since_contact ?? '',
+      c.interaction_count ?? 0,
+    ])
+    const csv = [headers, ...rows]
+      .map((row) => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))
+      .join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `contacts-${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   async function loadSuggestions() {
     if (suggestionsLoaded) { setSuggestionsOpen(true); return }
     setSuggestionsLoading(true)
@@ -135,6 +165,18 @@ export default function DashboardPage() {
     setSuggestions(s ?? [])
     setSuggestionsLoading(false)
     setSuggestionsLoaded(true)
+  }
+
+  async function logSuggestionContact(contactId: string) {
+    setLoggingSuggestion(contactId)
+    await fetch(`/api/contacts/${contactId}/interactions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'emailed', interaction_date: new Date().toISOString().split('T')[0], note: null }),
+    })
+    setLoggedSuggestions((prev) => new Set([...prev, contactId]))
+    setLoggingSuggestion(null)
+    loadContacts(0, true)
   }
 
   async function saveQuickLog(contactId: string) {
@@ -162,11 +204,27 @@ export default function DashboardPage() {
       (c.company ?? '').toLowerCase().includes(query.toLowerCase()) ||
       (c.role ?? '').toLowerCase().includes(query.toLowerCase())
     const level = stalenessLevel(c.days_since_contact)
-    const matchFilter = filter === 'all' || level === filter
+    const matchFilter =
+      filter === 'all' ||
+      (filter === 'reminder'
+        ? c.follow_up_date != null && differenceInDays(parseISO(c.follow_up_date), new Date()) <= 7
+        : level === filter)
     const matchCompany = !companyFilter || c.company === companyFilter
     const matchRole = !roleFilter || c.role === roleFilter
     const matchTag = !tagFilter || (c.tags ?? []).includes(tagFilter)
     return matchQuery && matchFilter && matchCompany && matchRole && matchTag
+  }).sort((a, b) => {
+    if (sortBy === 'name') return a.name.localeCompare(b.name)
+    if (sortBy === 'interactions') return (b.interaction_count ?? 0) - (a.interaction_count ?? 0)
+    if (sortBy === 'reminder') {
+      const aDate = a.follow_up_date ? new Date(a.follow_up_date).getTime() : Infinity
+      const bDate = b.follow_up_date ? new Date(b.follow_up_date).getTime() : Infinity
+      return aDate - bDate
+    }
+    // staleness: never contacted first, then by days_since_contact desc
+    const aVal = a.days_since_contact ?? Infinity
+    const bVal = b.days_since_contact ?? Infinity
+    return bVal - aVal
   })
 
   const hasDropdownFilter = companyFilter || roleFilter || tagFilter
@@ -234,6 +292,16 @@ export default function DashboardPage() {
           <p className="text-sm text-slate-500 mt-0.5">{contacts.length} in your network</p>
         </div>
         <div className="flex gap-2">
+          {contacts.length > 0 && (
+            <button
+              onClick={exportCSV}
+              className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
+              title="Export all contacts to CSV"
+            >
+              <Download className="w-4 h-4" />
+              Export
+            </button>
+          )}
           <Link
             href="/import"
             className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
@@ -288,13 +356,26 @@ export default function DashboardPage() {
                         {contact!.company && <span className="text-xs text-slate-400 ml-1.5">· {contact!.company}</span>}
                         <p className="text-xs text-slate-500 mt-0.5">{reason}</p>
                       </div>
-                      <Link
-                        href={`/contacts/${contactId}`}
-                        className="text-xs font-medium px-2.5 py-1 rounded-lg text-white shrink-0 hover:opacity-90 transition-opacity"
-                        style={{ background: '#8b5cf6' }}
-                      >
-                        View →
-                      </Link>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          onClick={() => logSuggestionContact(contactId)}
+                          disabled={loggingSuggestion === contactId || loggedSuggestions.has(contactId)}
+                          className="text-xs font-medium px-2.5 py-1 rounded-lg border transition-all disabled:opacity-60"
+                          style={loggedSuggestions.has(contactId)
+                            ? { background: '#f0fdf4', color: '#16a34a', borderColor: '#bbf7d0' }
+                            : { background: '#f8fafc', color: '#475569', borderColor: '#e2e8f0' }
+                          }
+                        >
+                          {loggedSuggestions.has(contactId) ? '✓ Logged' : loggingSuggestion === contactId ? '…' : 'Contacted'}
+                        </button>
+                        <Link
+                          href={`/contacts/${contactId}`}
+                          className="text-xs font-medium px-2.5 py-1 rounded-lg text-white shrink-0 hover:opacity-90 transition-opacity"
+                          style={{ background: '#8b5cf6' }}
+                        >
+                          View →
+                        </Link>
+                      </div>
                     </div>
                   ))}
                   <button
@@ -315,8 +396,12 @@ export default function DashboardPage() {
         <div className="flex gap-2 mb-5 flex-wrap">
           {remindersCount > 0 && (
             <button
-              onClick={() => setFilter(filter === 'all' ? 'all' : 'all')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-orange-50 text-orange-700 border border-orange-200"
+              onClick={() => setFilter(filter === 'reminder' ? 'all' : 'reminder')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                filter === 'reminder'
+                  ? 'bg-orange-500 text-white border-orange-500'
+                  : 'bg-orange-50 text-orange-700 border-orange-200'
+              }`}
             >
               <Bell className="w-3 h-3" />
               {remindersCount} reminder{remindersCount > 1 ? 's' : ''} due
@@ -345,7 +430,7 @@ export default function DashboardPage() {
               onClick={() => setFilter('all')}
               className="px-3 py-1.5 rounded-full text-xs font-medium text-slate-400 hover:text-slate-700 transition-colors"
             >
-              Clear
+              Clear filter
             </button>
           )}
         </div>
@@ -403,6 +488,17 @@ export default function DashboardPage() {
             {allTags.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
         )}
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+          className="px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:ring-2 focus:border-transparent transition-all shadow-sm"
+          style={{ '--tw-ring-color': '#6366f1' } as React.CSSProperties}
+        >
+          <option value="staleness">Sort: Most stale</option>
+          <option value="name">Sort: A → Z</option>
+          <option value="interactions">Sort: Most active</option>
+          <option value="reminder">Sort: Reminders first</option>
+        </select>
         {hasDropdownFilter && (
           <button
             onClick={() => { setCompanyFilter(''); setRoleFilter(''); setTagFilter('') }}
@@ -485,12 +581,17 @@ export default function DashboardPage() {
                       {(c.tags ?? []).length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1">
                           {(c.tags ?? []).slice(0, 3).map((tag) => (
-                            <span
+                            <button
                               key={tag}
-                              className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-indigo-50 text-indigo-600"
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setTagFilter(tag === tagFilter ? '' : tag) }}
+                              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${
+                                tag === tagFilter
+                                  ? 'bg-indigo-500 text-white'
+                                  : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'
+                              }`}
                             >
                               {tag}
-                            </span>
+                            </button>
                           ))}
                           {(c.tags ?? []).length > 3 && (
                             <span className="text-[10px] text-slate-400">+{(c.tags ?? []).length - 3} more</span>

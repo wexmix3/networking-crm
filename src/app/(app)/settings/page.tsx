@@ -5,6 +5,9 @@ export const dynamic = 'force-dynamic'
 import { useEffect, useState } from 'react'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
 import type { DigestPreferences } from '@/types'
+import { Pencil, Trash2, Check, X } from 'lucide-react'
+
+interface TagEntry { tag: string; count: number }
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
@@ -20,6 +23,12 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false)
   const [loading, setLoading] = useState(true)
 
+  // Tag management
+  const [tags, setTags] = useState<TagEntry[]>([])
+  const [editingTag, setEditingTag] = useState<string | null>(null)
+  const [editValue, setEditValue] = useState('')
+  const [tagSaving, setTagSaving] = useState(false)
+
   useEffect(() => {
     load()
   }, [])
@@ -31,6 +40,35 @@ export default function SettingsPage() {
     const { data } = await supabase.from('crm_digest_preferences').select('*').eq('user_id', user.id).maybeSingle()
     if (data) setPrefs(data)
     setLoading(false)
+    loadTags()
+  }
+
+  async function loadTags() {
+    const res = await fetch('/api/tags')
+    const { tags: t } = await res.json()
+    setTags(t ?? [])
+  }
+
+  async function renameTag(from: string, to: string) {
+    setTagSaving(true)
+    await fetch('/api/tags', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from, to }),
+    })
+    setEditingTag(null)
+    setTagSaving(false)
+    loadTags()
+  }
+
+  async function deleteTag(tag: string) {
+    if (!confirm(`Remove tag "${tag}" from all contacts?`)) return
+    await fetch('/api/tags', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: tag, to: '' }),
+    })
+    loadTags()
   }
 
   async function save() {
@@ -126,6 +164,68 @@ export default function SettingsPage() {
           </button>
         </div>
       </div>
+
+      {tags.length > 0 && (
+        <div className="bg-white rounded-xl border border-slate-200 p-6 mt-6">
+          <div className="mb-4">
+            <h2 className="font-semibold text-slate-900">Tag Management</h2>
+            <p className="text-xs text-slate-400 mt-0.5">Rename or delete tags across all contacts at once</p>
+          </div>
+          <ul className="space-y-2">
+            {tags.map(({ tag, count }) => (
+              <li key={tag} className="flex items-center gap-3 group">
+                {editingTag === tag ? (
+                  <>
+                    <input
+                      autoFocus
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') renameTag(tag, editValue.trim())
+                        if (e.key === 'Escape') setEditingTag(null)
+                      }}
+                      className="flex-1 px-2.5 py-1.5 border border-indigo-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <button
+                      onClick={() => renameTag(tag, editValue.trim())}
+                      disabled={tagSaving || !editValue.trim()}
+                      className="text-emerald-500 hover:text-emerald-700 disabled:opacity-40"
+                    >
+                      <Check className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => setEditingTag(null)} className="text-slate-300 hover:text-slate-500">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span className="flex-1 inline-flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-600 border border-indigo-100">
+                        {tag}
+                      </span>
+                      <span className="text-xs text-slate-400">{count} contact{count !== 1 ? 's' : ''}</span>
+                    </span>
+                    <button
+                      onClick={() => { setEditingTag(tag); setEditValue(tag) }}
+                      className="text-slate-300 hover:text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Rename tag"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => deleteTag(tag)}
+                      className="text-slate-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Delete tag from all contacts"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   )
 }
