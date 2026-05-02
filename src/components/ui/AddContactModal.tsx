@@ -12,6 +12,7 @@ interface Props {
 export default function AddContactModal({ onClose, onSaved }: Props) {
   const supabase = createBrowserSupabaseClient()
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [enrich, setEnrich] = useState(false)
   const [form, setForm] = useState({
     name: '',
@@ -29,7 +30,8 @@ export default function AddContactModal({ onClose, onSaved }: Props) {
   async function save() {
     if (!form.name.trim()) return
     setSaving(true)
-    await fetch('/api/contacts', {
+    setError(null)
+    const res = await fetch('/api/contacts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -45,6 +47,11 @@ export default function AddContactModal({ onClose, onSaved }: Props) {
       }),
     })
     setSaving(false)
+    if (res.status === 409) {
+      const body = await res.json()
+      setError(`"${body.existingName}" already exists with this email.`)
+      return
+    }
     onSaved()
   }
 
@@ -58,6 +65,9 @@ export default function AddContactModal({ onClose, onSaved }: Props) {
           </button>
         </div>
         <div className="px-6 py-5 space-y-4">
+          {error && (
+            <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>
+          )}
           {[
             { label: 'Name *', field: 'name', placeholder: 'Jane Smith' },
             { label: 'Company', field: 'company', placeholder: 'Acme Corp' },
@@ -94,8 +104,8 @@ export default function AddContactModal({ onClose, onSaved }: Props) {
               className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
             />
             <div>
-              <span className="text-xs font-medium text-gray-700">Auto-enrich with Apollo</span>
-              <span className="text-xs text-gray-400 ml-1">(fills email, phone, LinkedIn)</span>
+              <span className="text-xs font-medium text-gray-700">Auto-enrich with Hunter.io</span>
+              <span className="text-xs text-gray-400 ml-1">(finds email · 25/month free)</span>
             </div>
           </label>
         </div>

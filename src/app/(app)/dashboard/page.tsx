@@ -99,18 +99,31 @@ export default function DashboardPage() {
   const [suggestionsOpen, setSuggestionsOpen] = useState(false)
   const [suggestionsLoaded, setSuggestionsLoaded] = useState(false)
 
+  // First-run banner: show until dismissed or contacts exist
+  const [showWelcomeBanner, setShowWelcomeBanner] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return localStorage.getItem('crm_welcome_dismissed') !== '1'
+  })
+
+  const [totalContacts, setTotalContacts] = useState(0)
+  const [currentPage, setCurrentPage] = useState(0)
+  const [loadingMore, setLoadingMore] = useState(false)
+
   const supabase = createBrowserSupabaseClient()
 
-  useEffect(() => { loadContacts() }, [])
+  useEffect(() => { loadContacts(0, true) }, [])
 
-  async function loadContacts() {
-    setLoading(true)
-    const { data } = await supabase
-      .from('crm_contacts_with_staleness')
-      .select('*')
-      .order('days_since_contact', { ascending: false, nullsFirst: true })
-    setContacts((data as Contact[]) ?? [])
-    setLoading(false)
+  async function loadContacts(page = 0, replace = false) {
+    if (page === 0) setLoading(true)
+    else setLoadingMore(true)
+    const res = await fetch(`/api/contacts?page=${page}`)
+    const json = await res.json()
+    const incoming = (json.contacts as Contact[]) ?? []
+    setContacts((prev) => replace ? incoming : [...prev, ...incoming])
+    setTotalContacts(json.total ?? 0)
+    setCurrentPage(page)
+    if (page === 0) setLoading(false)
+    else setLoadingMore(false)
   }
 
   async function loadSuggestions() {
@@ -135,7 +148,7 @@ export default function DashboardPage() {
     setQuickLogId(null)
     setQuickLogNote('')
     setQuickLogDate(new Date().toISOString().split('T')[0])
-    loadContacts()
+    loadContacts(0, true)
   }
 
   const companies = Array.from(new Set(contacts.map((c) => c.company).filter(Boolean))).sort() as string[]
@@ -183,6 +196,37 @@ export default function DashboardPage() {
 
   return (
     <div className="p-8 max-w-5xl mx-auto">
+      {/* First-run welcome banner */}
+      {showWelcomeBanner && contacts.length === 0 && !loading && (
+        <div className="mb-6 bg-indigo-50 border border-indigo-200 rounded-xl p-5 flex items-start gap-4">
+          <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
+            <Sparkles className="w-5 h-5 text-indigo-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-indigo-900 mb-1">Welcome to your Networking CRM</p>
+            <p className="text-sm text-indigo-700 mb-3">Start by importing your LinkedIn connections — it takes about 30 seconds and sets up your whole network at once.</p>
+            <div className="flex gap-2">
+              <Link href="/import" className="px-3.5 py-1.5 text-xs font-semibold text-white rounded-lg hover:opacity-90 transition-opacity" style={{ background: '#6366f1' }}>
+                Import from LinkedIn
+              </Link>
+              <button
+                onClick={() => setShowAdd(true)}
+                className="px-3.5 py-1.5 text-xs font-medium text-indigo-700 bg-white border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors"
+              >
+                Add manually
+              </button>
+            </div>
+          </div>
+          <button
+            onClick={() => { setShowWelcomeBanner(false); localStorage.setItem('crm_welcome_dismissed', '1') }}
+            className="text-indigo-400 hover:text-indigo-600 transition-colors shrink-0 text-lg leading-none"
+            aria-label="Dismiss"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div>
@@ -545,10 +589,23 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* Load more */}
+      {contacts.length < totalContacts && (
+        <div className="mt-4 flex justify-center">
+          <button
+            onClick={() => loadContacts(currentPage + 1)}
+            disabled={loadingMore}
+            className="px-5 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-50"
+          >
+            {loadingMore ? 'Loading…' : `Load more (${totalContacts - contacts.length} remaining)`}
+          </button>
+        </div>
+      )}
+
       {showAdd && (
         <AddContactModal
           onClose={() => setShowAdd(false)}
-          onSaved={() => { setShowAdd(false); loadContacts() }}
+          onSaved={() => { setShowAdd(false); loadContacts(0, true) }}
         />
       )}
     </div>

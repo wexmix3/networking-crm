@@ -16,8 +16,11 @@ export async function GET() {
 
   if (!contacts?.length) return NextResponse.json({ suggestions: [] })
 
-  // Exclude anyone contacted in last 7 days
-  const candidates = contacts.filter((c) => !c.days_since_contact || c.days_since_contact > 7)
+  // Exclude anyone contacted in last 7 days, cap at 50 to keep prompt size bounded
+  const candidates = contacts
+    .filter((c) => !c.days_since_contact || c.days_since_contact > 7)
+    .sort((a, b) => (b.days_since_contact ?? 9999) - (a.days_since_contact ?? 9999))
+    .slice(0, 50)
   if (!candidates.length) return NextResponse.json({ suggestions: [] })
 
   const contactList = candidates.map((c) =>

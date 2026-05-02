@@ -69,7 +69,7 @@ export default function ImportPage() {
         <div>
           <p className="text-sm font-medium text-gray-800">Auto-enrich imported contacts</p>
           <p className="text-xs text-gray-500 mt-0.5">
-            Fill in missing email, phone, and LinkedIn URLs via Apollo · Free tier: 50 contacts/month
+            Fill in missing emails via Hunter.io · Free tier: 25 lookups/month
           </p>
         </div>
         <button

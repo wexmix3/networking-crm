@@ -6,7 +6,9 @@ export async function createMessageWithRetry(
   params: Anthropic.MessageCreateParamsNonStreaming,
   maxAttempts = 3,
 ): Promise<Anthropic.Message> {
-  const delays = [1500, 3000]
+  // 429/529 = rate limit → longer backoff; 5xx = server error → short backoff
+  const delays = (status: number | undefined) =>
+    status === 429 || status === 529 ? [8000, 20000] : [1500, 3000]
   let lastError: unknown
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -17,7 +19,8 @@ export async function createMessageWithRetry(
       const status = (err as { status?: number }).status
       if (status === 400 || status === 401) throw err
       if (attempt < maxAttempts - 1) {
-        await new Promise((r) => setTimeout(r, delays[attempt] ?? 3000))
+        const d = delays(status)
+        await new Promise((r) => setTimeout(r, d[attempt] ?? d[d.length - 1]))
       }
     }
   }
