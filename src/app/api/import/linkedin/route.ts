@@ -55,6 +55,7 @@ export async function POST(req: Request) {
     .eq('user_id', user.id)
 
   const existingEmails = new Set((existing ?? []).map((c: { email: string }) => c.email?.toLowerCase()).filter(Boolean))
+  const existingNames = new Set((existing ?? []).map((c: { name: string }) => c.name?.toLowerCase().trim()).filter(Boolean))
 
   const toInsert = []
   for (const row of rows.slice(0, 500)) {
@@ -65,6 +66,7 @@ export async function POST(req: Request) {
 
     const email = row['Email Address'] ?? row['EmailAddress'] ?? ''
     if (email && existingEmails.has(email.toLowerCase())) { skipped++; continue }
+    if (existingNames.has(name.toLowerCase())) { skipped++; continue }
 
     toInsert.push({
       user_id: user.id,
